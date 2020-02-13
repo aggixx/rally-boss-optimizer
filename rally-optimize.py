@@ -482,12 +482,12 @@ class AppState:
 
 		deck_options.sort(key=lambda d: d.get_score(), reverse=True)
 
-		print("================================================ Heuristic Scores ===========================================")
-		print("RNK\tSCORE      \tRESOURCES                    \tDESCRIPTION")
-		print("=============================================================================================================")
+		print("============================ Heuristic Scores ========================================================")
+		print("RNK\tSCORE\tRESOURCES                    \tDESCRIPTION")
+		print("======================================================================================================")
 
 		for deck_option in deck_options[:10]:
-			print("#{}\tScore: {:.3f}\t{}\t{}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
+			print("#{}\t{:.3f}\t{}\t{}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
 
 		n_true_decks = 30
 
@@ -499,12 +499,12 @@ class AppState:
 
 		true_decks = sorted(deck_options[:n_true_decks], key=lambda d: d.get_score(), reverse=True)
 
-		print("================================================= Trues Scores ==============================================")
-		print("RNK\tR2\tSCORE      \tRESOURCES              \tDESCRIPTION")
-		print("=============================================================================================================")
+		print("================================== Trues Scores ===========================================================")
+		print("RNK\tR2\tSCORE\tRESOURCES                     \tDESCRIPTION")
+		print("===========================================================================================================")
 
 		for deck in true_decks:
-			print("#{}\t#{}\tScore:{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
+			print("#{}\t#{}\t{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
 
 
 		
