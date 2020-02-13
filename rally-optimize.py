@@ -31,6 +31,9 @@ class Element(Enum):
 	def __repr__(self):
 		return "<e-{}>".format(self.name)
 
+	def __lt__(self, o):
+		return self.value < o.value
+
 	def short(self):
 		return self.name[:1]
 
@@ -157,7 +160,7 @@ class Hand:
 
 		for boss in self.app.get_bosses():
 			max_resources = max(map(lambda c: boss.calculate_resources(c), self.cards))
-			resources += max_resources * boss.spawn_chance
+			resources += max_resources * boss.get_spawn_chance()
 
 		return resources
 
@@ -211,7 +214,7 @@ class BossHandPair():
 
 	def get_resources(self):
 		if not hasattr(self, 'resources'):
-			self.resources = self.boss.calculate_resources(self.selection) * self.boss.spawn_chance * self.hand.draw_chance
+			self.resources = self.boss.calculate_resources(self.selection) * self.boss.get_spawn_chance() * self.hand.draw_chance
 
 		return self.resources
 
@@ -382,19 +385,20 @@ class Boss:
 
 		n = 4
 		r = len(elements)
-		self.spawn_chance = 1
-		self.spawn_chance /= 4
-		self.spawn_chance /= math.factorial(n+r-1) / math.factorial(r) / math.factorial(n-1)
-		logging.debug("{} spawn chance: {}".format(self, self.spawn_chance))
+		self.spawn_weight = 1
+		self.spawn_total = n ** r
 
 	def __str__(self):
 		return "Boss-{}".format("".join(map(lambda e: e.short(), self.elements)))
 
-	def __str__(self):
+	def __repr__(self):
 		return "<Boss-{}>".format("".join(map(lambda e: e.short(), self.elements)))
 
 	def calculateDamage(self, card):
 		pass
+
+	def get_spawn_chance(self):
+		return self.spawn_weight / self.spawn_total / 4
 
 	def calculate_resources(self, card):
 		logging.debug("Calculating resource gain for {} vs {}...".format(card, self))
@@ -427,11 +431,32 @@ class AppState:
 			self.bosses = []
 
 			for numElements in range(1, 5):
-				for elements in itertools.combinations_with_replacement(Element, numElements):
-					self.bosses.append(Boss(elements))
+				self.tier_bosses = []
 
-			#total_spawn_chance = sum(map(lambda b: b.spawn_chance, self.bosses))
-			#logging.info("Total spawn chance: {}".format(total_spawn_chance))
+				for elements in itertools.product(Element, repeat=numElements):
+					self.tier_bosses.append(Boss(list(elements)))
+
+				logging.debug(self.tier_bosses)
+
+				while len(self.tier_bosses) > 0:
+					boss = self.tier_bosses.pop()
+
+					filtered = list(filter(lambda b: sorted(b.elements) == sorted(boss.elements), self.tier_bosses))
+
+					logging.debug("Adding {} weight to {}".format(len(filtered), boss))
+
+					boss.spawn_weight += sum(list(map(lambda b: b.spawn_weight, filtered)))
+
+					self.bosses.append(boss)
+
+					for boss in filtered:
+						self.tier_bosses.remove(boss)
+
+
+			total_spawn_chance = sum(map(lambda b: b.get_spawn_chance(), self.bosses))
+			logging.debug("Total spawn chance: {}".format(total_spawn_chance))
+
+			logging.debug(self.bosses)
 
 		return self.bosses
 
