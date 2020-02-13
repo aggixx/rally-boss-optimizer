@@ -534,13 +534,6 @@ class AppState:
 			print("#{}\t#{}\t{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
 
 
-		
-
-#card = Card([Element.EARTH, Element.FIRE, Element.FIRE], Resource.WOOD, 1)
-#boss = Boss([Element.FIRE])
-
-#boss.calculate_resources(card)
-
 app = AppState()
 app.load('input.txt')
 
@@ -548,4 +541,4 @@ start_time = time.time()
 
 app.run()
 
-logging.info("Execution time: {}".format(time.time() - start_time))
+logging.info("Execution time: {:.3f}s".format(time.time() - start_time))
