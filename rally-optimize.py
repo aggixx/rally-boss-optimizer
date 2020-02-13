@@ -52,9 +52,9 @@ class Resource(Enum):
 		return self.name[:1]
 
 class CacheEntry:
-	def __init__(self, score, bias):
+	def __init__(self, score, approx_bias):
 		self.score = score
-		self.bias = bias
+		self.approx_bias = approx_bias
 
 class Hand:
 	def __init__(self, app, cards):
@@ -77,11 +77,11 @@ class Hand:
 
 		return mean(hand_resources)
 
-	def calc_bias(self):
-		hand_bias = []
+	def calc_approx_bias(self):
+		hand_approx_bias = []
 
 		for numElements in range(1,5):
-			tier_bias = []
+			tier_approx_bias = []
 
 			for elements in itertools.combinations_with_replacement(Element, numElements):
 				boss = Boss(elements)
@@ -99,18 +99,18 @@ class Hand:
 				#logging.info(max_wood)
 				#logging.info(max_stone)
 
-				bias = max_wood - max_stone
+				approx_bias = max_wood - max_stone
 
-				logging.debug("Bias: {}".format(bias))
+				logging.debug("Bias: {}".format(approx_bias))
 
-				tier_bias.append(bias)
+				tier_approx_bias.append(approx_bias)
 
-			hand_bias.append(mean(tier_bias))
+			hand_approx_bias.append(mean(tier_approx_bias))
 
-		return mean(hand_bias)
+		return mean(hand_approx_bias)
 
 	def cache(self):
-		self.app.hand_cache[repr(self.cards)] = CacheEntry(self.calc_score(), self.calc_bias())
+		self.app.hand_cache[repr(self.cards)] = CacheEntry(self.calc_score(), self.calc_approx_bias())
 
 	def get_score(self):
 		if repr(self.cards) not in self.app.hand_cache:
@@ -118,11 +118,11 @@ class Hand:
 
 		return self.app.hand_cache[repr(self.cards)].score
 
-	def get_bias(self):
+	def get_approx_bias(self):
 		if repr(self.cards) not in self.app.hand_cache:
 			self.cache()
 
-		return self.app.hand_cache[repr(self.cards)].bias
+		return self.app.hand_cache[repr(self.cards)].approx_bias
 
 class Deck:
 	def __init__(self, app, cards):
@@ -149,18 +149,18 @@ class Deck:
 			logging.debug("Scoring {}...".format(self))
 
 			deck_resources = []
-			deck_bias = []
+			deck_approx_bias = []
 
 			for hand_cards in itertools.combinations(self.cards, 3):
 				hand = Hand(self.app, hand_cards)
 				deck_resources.append(hand.get_score())
-				deck_bias.append(hand.get_bias())
+				deck_approx_bias.append(hand.get_approx_bias())
 
 			self.base_score = mean(deck_resources)
-			self.bias = mean(deck_bias)
-			self.score = self.base_score - abs(self.bias) / 2
+			self.approx_bias = mean(deck_approx_bias)
+			self.score = self.base_score - abs(self.approx_bias) / 2
 			logging.debug("Deck base score: {}".format(self.base_score))
-			logging.debug("Deck bias: {}".format(self.bias))
+			logging.debug("Deck approx_bias: {}".format(self.approx_bias))
 			logging.debug("Deck score: {}".format(self.score))
 
 		return self.score
