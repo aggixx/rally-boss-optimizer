@@ -5,6 +5,9 @@ import math
 from statistics import mean
 from enum import Enum
 
+import progressbar
+
+progressbar.streams.wrap_stderr()
 logging.basicConfig(level=logging.INFO)
 
 class Element(Enum):
@@ -311,7 +314,7 @@ class Deck:
 		return self.score
 
 	def minimize_delta(self):
-		logging.info("Minimizing delta on {}...".format(self))
+		logging.debug("Minimizing delta on {}...".format(self))
 
 		#a_time = time.time()
 
@@ -486,7 +489,10 @@ class AppState:
 
 		n_true_decks = 30
 
-		for deck in deck_options[:n_true_decks]:
+		logging.info("Minimizing deltas...")
+		
+		for i in progressbar.progressbar(range(n_true_decks)):
+			deck = deck_options[i]
 			deck.minimize_delta()
 
 		true_decks = sorted(deck_options[:n_true_decks], key=lambda d: d.get_score(), reverse=True)
