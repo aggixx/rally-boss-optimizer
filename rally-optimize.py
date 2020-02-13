@@ -84,24 +84,12 @@ class ResourceContainer:
 		return ResourceContainer(wood=total_wood, stone=total_stone)
 
 	def __mul__(self, o):
-		'''
-		if isinstance(o, ResourceContainer):
-			total_wood = self.wood * o.wood
-			total_stone = self.stone * o.stone
-			return ResourceContainer(wood=total_wood, stone=total_stone)
-		'''
 		if isinstance(o, float):
 			total_wood = self.wood * o
 			total_stone = self.stone * o
 			return ResourceContainer(wood=total_wood, stone=total_stone)
 
 	def __div__(self, o):
-		'''
-		if isinstance(o, ResourceContainer):
-			total_wood = self.wood / o.wood
-			total_stone = self.stone / o.stone
-			return ResourceContainer(wood=total_wood, stone=total_stone)
-		'''
 		if isinstance(o, float):
 			total_wood = self.wood / o
 			total_stone = self.stone / o
@@ -488,12 +476,6 @@ class AppState:
 
 	def run(self):
 		deck_options = []
-
-		'''
-		current_score = self.deck.get_score()
-		logging.info("Current score: {}".format(current_score))
-		deck_options.append(self.deck)
-		'''
 
 		for deck_size in range(len(self.deck), 9, -1):
 			logging.info("Deck size: {}".format(deck_size))
