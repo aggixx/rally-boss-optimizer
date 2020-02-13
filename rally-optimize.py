@@ -516,7 +516,7 @@ class AppState:
 		for deck_option in deck_options[:10]:
 			print("#{}\t{:.3f}\t{}\t{}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
 
-		n_true_decks = 30
+		n_true_decks = min(30, len(deck_options))
 
 		logging.info("Minimizing deltas...")
 
