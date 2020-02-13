@@ -482,7 +482,9 @@ class AppState:
 
 		deck_options.sort(key=lambda d: d.get_score(), reverse=True)
 
-		logging.info("=== Results: heuristic scoring ===")
+		print("================================================ Heuristic Scores ===========================================")
+		print("RNK\tSCORE      \tRESOURCES                    \tDESCRIPTION")
+		print("=============================================================================================================")
 
 		for deck_option in deck_options[:10]:
 			print("#{}\tScore: {:.3f}\t{}\t{}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
@@ -497,10 +499,12 @@ class AppState:
 
 		true_decks = sorted(deck_options[:n_true_decks], key=lambda d: d.get_score(), reverse=True)
 
-		logging.info("=== Results: true scoring ===")
+		print("================================================= Trues Scores ==============================================")
+		print("RNK\tR2\tSCORE      \tRESOURCES              \tDESCRIPTION")
+		print("=============================================================================================================")
 
 		for deck in true_decks:
-			print("#{}\tScore:{:.3f}\t{}\t{}".format(deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
+			print("#{}\t#{}\tScore:{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
 
 
 		
