@@ -119,6 +119,22 @@ class ResourceContainer:
 	def delta(self):
 		return abs(self.wood - self.stone)
 
+	def surplus(self):
+		if self.wood > self.stone:
+			return Resource.WOOD
+		elif self.stone > self.wood:
+			return Resource.STONE
+		else:
+			return None
+
+	def scarce(self):
+		if self.wood < self.stone:
+			return Resource.WOOD
+		elif self.stone < self.wood:
+			return Resource.STONE
+		else:
+			return None
+
 class Hand:
 	def __init__(self, deck, cards):
 		self.cards = cards
@@ -130,11 +146,14 @@ class Hand:
 		self.draw_chance = 1
 		self.draw_chance /= math.factorial(n) / math.factorial(r) / math.factorial(n-r)
 
+	def __repr__(self):
+		return repr(self.cards)
+
 	def calc_score(self):
 		resources = ResourceContainer()
 
 		for boss in self.app.get_bosses():
-			max_resources = max(map(lambda h: boss.calculateResources(h), self.cards))
+			max_resources = max(map(lambda c: boss.calculate_resources(c), self.cards))
 			resources += max_resources * boss.spawn_chance
 
 		return resources
@@ -150,12 +169,12 @@ class Hand:
 
 	def get_flip_cost(self, boss):
 		try:
-			max_wood = max(map(lambda h: boss.calculateResources(h), filter(lambda c: c.resource == Resource.WOOD, self.cards))).total()
+			max_wood = max(map(lambda c: boss.calculate_resources(c), filter(lambda c: c.resource == Resource.WOOD, self.cards)))
 		except ValueError:
 			max_wood = ResourceContainer()
 
 		try:
-			max_stone = max(map(lambda h: boss.calculateResources(h), filter(lambda c: c.resource == Resource.STONE, self.cards))).total()
+			max_stone = max(map(lambda c: boss.calculate_resources(c), filter(lambda c: c.resource == Resource.STONE, self.cards)))
 		except ValueError:
 			max_stone = ResourceContainer()
 
@@ -166,6 +185,85 @@ class Hand:
 		logging.debug("{} vs {} flip cost: {}".format(self, boss, cost))
 
 		return cost
+
+class BossHandPair():
+	def __init__(self, cd, boss, hand):
+		self.cdeck = cd
+		self.boss = boss
+		self.hand = hand
+		self.app = cd.app
+
+		self.set_default_selection()
+
+		self.is_flippable = len(set(map(lambda c: c.resource, self.hand.cards))) > 1
+
+	def __repr__(self):
+		return "<BHP-({}, {})-<{}>>".format(self.boss, self.hand, self.selection)
+
+	def set_default_selection(self):
+		# sort the hand by value
+		sorted_cards = sorted(self.hand.cards, key=lambda c: self.boss.calculate_resources(c), reverse=True)
+		self.selection = sorted_cards[0]
+		self.invalidate()
+
+	def get_resources(self):
+		if not hasattr(self, 'resources'):
+			self.resources = self.boss.calculate_resources(self.selection) * self.boss.spawn_chance * self.hand.draw_chance
+
+		return self.resources
+
+	def flip(self):
+		if not self.is_flippable:
+			raise Exception()
+
+		filtered_cards = list(filter(lambda c: c.resource != self.selection.resource, self.hand.cards))
+
+		self.selection = filtered_cards[0]
+		self.invalidate()
+
+	def get_flip_cost(self):
+		return self.hand.get_flip_cost(self.boss)
+
+	def invalidate(self):
+		if hasattr(self, 'resources'):
+			del self.resources
+
+		self.cdeck.invalidate()
+
+
+class ComplexDeck():
+	def __init__(self, deck):
+		self.deck = deck
+		self.app = deck.app
+
+		self.init_bh_pairs()
+
+	def init_bh_pairs(self):
+		# 1) calculate all combinations of bosses
+		bosses = self.app.get_bosses()
+
+		# 2) calculate all possible hands for this deck
+		hands = self.deck.get_hands()
+
+		# 3) calculate all possible boss-hand pairs
+		self.pairs = []
+
+		for boss in bosses:
+			for hand in hands:
+				self.pairs.append(BossHandPair(self, boss, hand))
+
+	def get_resources(self):
+		if not hasattr(self, 'resources'):
+			self.resources = ResourceContainer()
+
+			for r in map(lambda p: p.get_resources(), self.pairs):
+				self.resources += r
+
+		return self.resources
+
+	def invalidate(self):
+		if hasattr(self, 'resources'):
+			del self.resources
 
 class Deck:
 	def __init__(self, app, cards):
@@ -212,30 +310,56 @@ class Deck:
 
 		return self.score
 
-	def get_biased_score(self):
-		# 1) calculate all combinations of bosses
-		bosses = self.app.get_bosses()
+	def minimize_delta(self):
+		logging.info("Minimizing delta on {}...".format(self))
 
-		# 2) calculate all possible hands for this deck
-		hands = self.get_hands()
+		#a_time = time.time()
 
-		# 3) calculate all possible boss-hand pairs
-		bh_pairs = []
-		for boss in bosses:
-			for hand in hands:
-				bh_pairs.append((boss, hand))
+		# 1) create complex deck
+		cd = ComplexDeck(self)
 
-		# 4a) calculate the total wood and stone gained by the deck
+		#logging.info("Step 1 elapsed: {:.3f}s".format(time.time()-a_time))
 
-		# 4b) calculate the wood-stone delta
+		# 2a) calculate the total wood and stone gained by the deck
+		resources = cd.get_resources()
 
-		# 5a) filter list of pairs to ones that can have their resource flipped favorably
+		# 2b) calculate the wood-stone delta
+		best_delta = resources.delta()
 
-		# 5b) sort list of boss-hand pairs by its opportunity cost of switching resources, desc
+		if best_delta == 0:
+			return resources.total()
+
+		# 3) determine which resource we need to gain more of
+		target_resource = resources.scarce()
+
+		# 4) filter list of pairs to ones that can have their resource flipped favorably
+		bh_pairs_f = list(filter(lambda bhp: bhp.is_flippable and bhp.get_resources().total() > 0 and bhp.get_resources().surplus() != target_resource, cd.pairs))
+
+		# 5) sort list of boss-hand pairs by its opportunity cost of switching resources, desc
+		bh_pairs_f.sort(key=lambda bhp: bhp.get_flip_cost())
+
+		#a_time = time.time()
+			
+		logging.debug("Start delta: {}".format(best_delta))
 
 		# 6) one by one, flip the resource gain of each hand-boss pair until the wood-stone delta is minimized
+		while len(bh_pairs_f) > 0:
+			bhp = bh_pairs_f.pop(0)
+			bhp.flip()
 
-		pass
+			#b_time = time.time()
+
+			if cd.get_resources().delta() < best_delta:
+				best_delta = cd.get_resources().delta()
+			else:
+				bhp.flip()
+				break
+
+		#a2_time = time.time()
+		#logging.info("Step 6 elapsed: {:.3f}s".format(a2_time-a_time))
+
+		self.resources = cd.get_resources()
+		self.score = min(self.resources.wood, self.resources.stone) * 2
 
 class Card:
 	def __init__(self, elements, resource, resource_amount):
@@ -269,7 +393,7 @@ class Boss:
 	def calculateDamage(self, card):
 		pass
 
-	def calculateResources(self, card):
+	def calculate_resources(self, card):
 		logging.debug("Calculating resource gain for {} vs {}...".format(card, self))
 
 		logging.debug("{} elements: {}".format(card, card.elements))
@@ -283,7 +407,11 @@ class Boss:
 
 		logging.debug("Resource amount: {} {}".format(amount, card.resource))
 
-		return ResourceContainer.create(amount, card.resource)
+		rc = ResourceContainer.create(amount, card.resource)
+
+		assert isinstance(rc, ResourceContainer)
+
+		return rc
 
 class AppState:
 	def __init__(self):
@@ -351,8 +479,22 @@ class AppState:
 
 		deck_options.sort(key=lambda d: d.get_score(), reverse=True)
 
+		logging.info("=== Results: heuristic scoring ===")
+
 		for deck_option in deck_options[:10]:
-			logging.info("Score: {:.3f} | {} | {}".format(deck_option.get_score(), deck_option.resources, deck_option))
+			logging.info("Score: #{} {:.3f} | {} | {}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
+
+		n_true_decks = 30
+
+		for deck in deck_options[:n_true_decks]:
+			deck.minimize_delta()
+
+		true_decks = sorted(deck_options[:n_true_decks], key=lambda d: d.get_score(), reverse=True)
+
+		logging.info("=== Results: true scoring ===")
+
+		for deck in true_decks:
+			logging.info("Score: #{} {:.3f} | {} | {}".format(deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
 
 
 		
@@ -360,7 +502,7 @@ class AppState:
 #card = Card([Element.EARTH, Element.FIRE, Element.FIRE], Resource.WOOD, 1)
 #boss = Boss([Element.FIRE])
 
-#boss.calculateResources(card)
+#boss.calculate_resources(card)
 
 app = AppState()
 app.load('input.txt')
