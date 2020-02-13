@@ -456,6 +456,8 @@ class AppState:
 			total_spawn_chance = sum(map(lambda b: b.get_spawn_chance(), self.bosses))
 			logging.debug("Total spawn chance: {}".format(total_spawn_chance))
 
+			assert abs(1.0 - total_spawn_chance) < 0.000001
+
 			logging.debug(self.bosses)
 
 		return self.bosses
