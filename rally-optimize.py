@@ -485,12 +485,12 @@ class AppState:
 		logging.info("=== Results: heuristic scoring ===")
 
 		for deck_option in deck_options[:10]:
-			logging.info("Score: #{} {:.3f} | {} | {}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
+			print("#{}\tScore: {:.3f}\t{}\t{}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
 
 		n_true_decks = 30
 
 		logging.info("Minimizing deltas...")
-		
+
 		for i in progressbar.progressbar(range(n_true_decks)):
 			deck = deck_options[i]
 			deck.minimize_delta()
@@ -500,7 +500,7 @@ class AppState:
 		logging.info("=== Results: true scoring ===")
 
 		for deck in true_decks:
-			logging.info("Score: #{} {:.3f} | {} | {}".format(deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
+			print("#{}\tScore:{:.3f}\t{}\t{}".format(deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
 
 
 		
