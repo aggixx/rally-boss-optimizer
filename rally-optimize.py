@@ -1,6 +1,7 @@
 import logging
 import itertools
 import time
+import math
 from statistics import mean
 from enum import Enum
 
@@ -51,78 +52,120 @@ class Resource(Enum):
 	def short(self):
 		return self.name[:1]
 
-class CacheEntry:
-	def __init__(self, score, approx_bias):
-		self.score = score
-		self.approx_bias = approx_bias
+class ResourceContainer:
+	def __init__(self, wood=0, stone=0):
+		self.wood = wood
+		self.stone = stone
+
+	@classmethod
+	def create(cls, amount, resource):
+		if resource == Resource.WOOD:
+			return cls(wood=amount)
+		elif resource == Resource.STONE:
+			return cls(stone=amount)
+
+	def __repr__(self):
+		return "<{:.3f} Wood, {:.3f} Stone>".format(self.wood, self.stone)
+
+	def __add__(self, o):
+		total_wood = self.wood + o.wood
+		total_stone = self.stone + o.stone
+		return ResourceContainer(wood=total_wood, stone=total_stone)
+
+	def __sub__(self, o):
+		total_wood = self.wood - o.wood
+		total_stone = self.stone - o.stone
+		return ResourceContainer(wood=total_wood, stone=total_stone)
+
+	def __mul__(self, o):
+		'''
+		if isinstance(o, ResourceContainer):
+			total_wood = self.wood * o.wood
+			total_stone = self.stone * o.stone
+			return ResourceContainer(wood=total_wood, stone=total_stone)
+		'''
+		if isinstance(o, float):
+			total_wood = self.wood * o
+			total_stone = self.stone * o
+			return ResourceContainer(wood=total_wood, stone=total_stone)
+
+	def __div__(self, o):
+		'''
+		if isinstance(o, ResourceContainer):
+			total_wood = self.wood / o.wood
+			total_stone = self.stone / o.stone
+			return ResourceContainer(wood=total_wood, stone=total_stone)
+		'''
+		if isinstance(o, float):
+			total_wood = self.wood / o
+			total_stone = self.stone / o
+			return ResourceContainer(wood=total_wood, stone=total_stone)
+
+	def __lt__(self, o):
+		return self.total() < o.total()
+
+	def __gt__(self, o):
+		return self.total() > o.total()
+
+	def __le__(self, o):
+		return self.total() <= o.total()
+
+	def __ge__(self, o):
+		return self.total() >= o.total()
+
+	def total(self):
+		return self.wood + self.stone
+
+	def delta(self):
+		return abs(self.wood - self.stone)
 
 class Hand:
-	def __init__(self, app, cards):
+	def __init__(self, deck, cards):
 		self.cards = cards
-		self.app = app
+		self.deck = deck
+		self.app = deck.app
+
+		n = len(self.deck)
+		r = len(self.cards)
+		self.draw_chance = 1
+		self.draw_chance /= math.factorial(n) / math.factorial(r) / math.factorial(n-r)
 
 	def calc_score(self):
-		hand_resources = []
+		resources = ResourceContainer()
 
-		for numElements in range(1,5):
-			tier_resources = []
+		for boss in self.app.get_bosses():
+			max_resources = max(map(lambda h: boss.calculateResources(h), self.cards))
+			resources += max_resources * boss.spawn_chance
 
-			for elements in itertools.combinations_with_replacement(Element, numElements):
-				boss = Boss(elements)
-
-				max_resources = max(map(lambda h: boss.calculateResources(h), self.cards))
-				tier_resources.append(max_resources)
-
-			hand_resources.append(mean(tier_resources))
-
-		return mean(hand_resources)
-
-	def calc_approx_bias(self):
-		hand_approx_bias = []
-
-		for numElements in range(1,5):
-			tier_approx_bias = []
-
-			for elements in itertools.combinations_with_replacement(Element, numElements):
-				boss = Boss(elements)
-
-				try:
-					max_wood = max(map(lambda h: boss.calculateResources(h), filter(lambda c: c.resource == Resource.WOOD, self.cards)))
-				except ValueError:
-					max_wood = 0
-
-				try:
-					max_stone = max(map(lambda h: boss.calculateResources(h), filter(lambda c: c.resource == Resource.STONE, self.cards)))
-				except ValueError:
-					max_stone = 0
-
-				#logging.info(max_wood)
-				#logging.info(max_stone)
-
-				approx_bias = max_wood - max_stone
-
-				logging.debug("Bias: {}".format(approx_bias))
-
-				tier_approx_bias.append(approx_bias)
-
-			hand_approx_bias.append(mean(tier_approx_bias))
-
-		return mean(hand_approx_bias)
+		return resources
 
 	def cache(self):
-		self.app.hand_cache[repr(self.cards)] = CacheEntry(self.calc_score(), self.calc_approx_bias())
+		self.app.hand_cache[repr(self.cards)] = self.calc_score()
 
 	def get_score(self):
 		if repr(self.cards) not in self.app.hand_cache:
 			self.cache()
 
-		return self.app.hand_cache[repr(self.cards)].score
+		return self.app.hand_cache[repr(self.cards)] * self.draw_chance
 
-	def get_approx_bias(self):
-		if repr(self.cards) not in self.app.hand_cache:
-			self.cache()
+	def get_flip_cost(self, boss):
+		try:
+			max_wood = max(map(lambda h: boss.calculateResources(h), filter(lambda c: c.resource == Resource.WOOD, self.cards))).total()
+		except ValueError:
+			max_wood = ResourceContainer()
 
-		return self.app.hand_cache[repr(self.cards)].approx_bias
+		try:
+			max_stone = max(map(lambda h: boss.calculateResources(h), filter(lambda c: c.resource == Resource.STONE, self.cards))).total()
+		except ValueError:
+			max_stone = ResourceContainer()
+
+		#logging.info(max_wood)
+		#logging.info(max_stone)
+
+		cost = abs(max_wood.total() - max_stone.total())
+		logging.debug("{} vs {} flip cost: {}".format(self, boss, cost))
+
+		return cost
 
 class Deck:
 	def __init__(self, app, cards):
@@ -144,26 +187,55 @@ class Deck:
 	def __len__(self):
 		return len(self.cards)
 
+	def get_hands(self):
+		if not hasattr(self, 'hands'):
+			self.hands = []
+
+			for hand_cards in itertools.combinations(self.cards, 3):
+				self.hands.append(Hand(self, hand_cards))
+
+		return self.hands
+
 	def get_score(self):
 		if not hasattr(self, 'score'):
 			logging.debug("Scoring {}...".format(self))
 
-			deck_resources = []
-			deck_approx_bias = []
+			self.resources = ResourceContainer()
 
-			for hand_cards in itertools.combinations(self.cards, 3):
-				hand = Hand(self.app, hand_cards)
-				deck_resources.append(hand.get_score())
-				deck_approx_bias.append(hand.get_approx_bias())
+			for hand in self.get_hands():
+				self.resources += hand.get_score()
 
-			self.base_score = mean(deck_resources)
-			self.approx_bias = mean(deck_approx_bias)
-			self.score = self.base_score - abs(self.approx_bias) / 2
-			logging.debug("Deck base score: {}".format(self.base_score))
-			logging.debug("Deck approx_bias: {}".format(self.approx_bias))
+			logging.debug("{} deck resources: {}".format(self, self.resources))
+
+			self.score = self.resources.total() - self.resources.delta() / 2
 			logging.debug("Deck score: {}".format(self.score))
 
 		return self.score
+
+	def get_biased_score(self):
+		# 1) calculate all combinations of bosses
+		bosses = self.app.get_bosses()
+
+		# 2) calculate all possible hands for this deck
+		hands = self.get_hands()
+
+		# 3) calculate all possible boss-hand pairs
+		bh_pairs = []
+		for boss in bosses:
+			for hand in hands:
+				bh_pairs.append((boss, hand))
+
+		# 4a) calculate the total wood and stone gained by the deck
+
+		# 4b) calculate the wood-stone delta
+
+		# 5a) filter list of pairs to ones that can have their resource flipped favorably
+
+		# 5b) sort list of boss-hand pairs by its opportunity cost of switching resources, desc
+
+		# 6) one by one, flip the resource gain of each hand-boss pair until the wood-stone delta is minimized
+
+		pass
 
 class Card:
 	def __init__(self, elements, resource, resource_amount):
@@ -180,6 +252,13 @@ class Card:
 class Boss:
 	def __init__(self, elements):
 		self.elements = elements
+
+		n = 4
+		r = len(elements)
+		self.spawn_chance = 1
+		self.spawn_chance /= 4
+		self.spawn_chance /= math.factorial(n+r-1) / math.factorial(r) / math.factorial(n-1)
+		logging.debug("{} spawn chance: {}".format(self, self.spawn_chance))
 
 	def __str__(self):
 		return "Boss-{}".format("".join(map(lambda e: e.short(), self.elements)))
@@ -204,11 +283,26 @@ class Boss:
 
 		logging.debug("Resource amount: {} {}".format(amount, card.resource))
 
-		return amount
+		return ResourceContainer.create(amount, card.resource)
 
 class AppState:
 	def __init__(self):
 		self.hand_cache = {}
+
+	def get_bosses(self):
+		if not hasattr(self, 'bosses'):
+			logging.info("Creating boss combinations...")
+
+			self.bosses = []
+
+			for numElements in range(1, 5):
+				for elements in itertools.combinations_with_replacement(Element, numElements):
+					self.bosses.append(Boss(elements))
+
+			#total_spawn_chance = sum(map(lambda b: b.spawn_chance, self.bosses))
+			#logging.info("Total spawn chance: {}".format(total_spawn_chance))
+
+		return self.bosses
 
 	def load(self, path):
 		cards = []
@@ -237,11 +331,13 @@ class AppState:
 	def run(self):
 		deck_options = []
 
+		'''
 		current_score = self.deck.get_score()
 		logging.info("Current score: {}".format(current_score))
 		deck_options.append(self.deck)
+		'''
 
-		for deck_size in range(len(self.deck)-1, 9, -1):
+		for deck_size in range(len(self.deck), 9, -1):
 			logging.info("Deck size: {}".format(deck_size))
 
 			for cards in itertools.combinations(self.deck.cards, deck_size):
@@ -256,7 +352,7 @@ class AppState:
 		deck_options.sort(key=lambda d: d.get_score(), reverse=True)
 
 		for deck_option in deck_options[:10]:
-			logging.info("Score: {:3f} | {}".format(deck_option.get_score(), deck_option))
+			logging.info("Score: {:.3f} | {} | {}".format(deck_option.get_score(), deck_option.resources, deck_option))
 
 
 		
