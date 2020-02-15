@@ -183,7 +183,9 @@ class Hand:
 		#logging.info(max_stone)
 
 		cost = abs(max_wood.total() - max_stone.total())
-		logging.debug("{} vs {} flip cost: {}".format(self, boss, cost))
+
+		if __debug__:
+			logging.debug("{} vs {} flip cost: {}".format(self, boss, cost))
 
 		return cost
 
@@ -300,32 +302,38 @@ class Deck:
 
 	def get_score(self):
 		if not hasattr(self, 'score'):
-			logging.debug("Scoring {}...".format(self))
+
+			if __debug__:
+				logging.debug("Scoring {}...".format(self))
 
 			self.resources = ResourceContainer()
 
 			for hand in self.get_hands():
 				self.resources += hand.get_score()
 
-			logging.debug("{} deck resources: {}".format(self, self.resources))
+			if __debug__:
+				logging.debug("{} deck resources: {}".format(self, self.resources))
 
 			self.score = self.resources.total() - self.resources.delta() / 2
-			logging.debug("Deck score: {}".format(self.score))
+
+			if __debug__:
+				logging.debug("Deck score: {}".format(self.score))
 
 		return self.score
 
 	def minimize_delta(self):
-		logging.debug("Minimizing delta on {}...".format(self))
-
-		#a_time = time.time()
+		if __debug__:
+			logging.debug("Minimizing delta on {}...".format(self))
 
 		# 1) create complex deck
+		time_p1 = time.time()
 		cd = ComplexDeck(self)
-
-		#logging.info("Step 1 elapsed: {:.3f}s".format(time.time()-a_time))
+		self.app.profile[1] += time.time() - time_p1
 
 		# 2a) calculate the total wood and stone gained by the deck
+		time_p2 = time.time()
 		resources = cd.get_resources()
+		self.app.profile[2] += time.time() - time_p2
 
 		# 2b) calculate the wood-stone delta
 		best_delta = resources.delta()
@@ -336,34 +344,46 @@ class Deck:
 		# 3) determine which resource we need to gain more of
 		target_resource = resources.scarce()
 
+		time_p4 = time.time()
 		# 4) filter list of pairs to ones that can have their resource flipped favorably
 		bh_pairs_f = list(filter(lambda bhp: bhp.is_flippable and bhp.get_resources().total() > 0 and bhp.get_resources().surplus() != target_resource, cd.pairs))
 
 		# 5) sort list of boss-hand pairs by its opportunity cost of switching resources, desc
 		bh_pairs_f.sort(key=lambda bhp: bhp.get_flip_cost())
+		self.app.profile[4] += time.time() - time_p4
 
 		#a_time = time.time()
 			
-		logging.debug("Start delta: {}".format(best_delta))
+		if __debug__:
+			logging.debug("Start delta: {}".format(best_delta))
 
 		# 6) one by one, flip the resource gain of each hand-boss pair until the wood-stone delta is minimized
 		while len(bh_pairs_f) > 0:
+			b_time = time.time()
+
 			bhp = bh_pairs_f.pop(0)
 			bhp.flip()
 
-			#b_time = time.time()
+			self.app.profile[5] += time.time() - b_time 
+			c_time = time.time()
 
 			if cd.get_resources().delta() < best_delta:
 				best_delta = cd.get_resources().delta()
+				
+				self.app.profile[6] += time.time() - c_time 
 			else:
 				bhp.flip()
-				break
+				
+				self.app.profile[6] += time.time() - c_time 
+				break 
 
 		#a2_time = time.time()
 		#logging.info("Step 6 elapsed: {:.3f}s".format(a2_time-a_time))
 
+		time_p7 = time.time()
 		self.resources = cd.get_resources()
 		self.score = min(self.resources.wood, self.resources.stone) * 2
+		self.app.profile[7] += time.time() - time_p7
 
 class Card:
 	def __init__(self, elements, resource, resource_amount):
@@ -404,7 +424,8 @@ class Boss:
 		matches = len(list(filter(lambda e: e in self.elements_set, card.elements)))
 		total_amount = matches * card.resource_amount
 
-		#logging.debug("{} vs {} resource amount: {} {}".format(card, self, total_amount, card.resource))
+		if __debug__:
+			logging.debug("{} vs {} resource amount: {} {}".format(card, self, total_amount, card.resource))
 
 		return ResourceContainer.create(total_amount, card.resource)
 
@@ -413,7 +434,7 @@ class AppState:
 		self.hand_cache = {}
 		self.bhp_cache = {}
 
-		self.profile = [0,0,0,0,0,0,0,0]
+		self.profile = [0,0,0,0,0,0,0,0,0,0,0]
 
 	def get_bosses(self):
 		if not hasattr(self, 'bosses'):
@@ -427,14 +448,16 @@ class AppState:
 				for elements in itertools.product(Element, repeat=numElements):
 					self.tier_bosses.append(Boss(self, list(elements)))
 
-				logging.debug(self.tier_bosses)
+				if __debug__:
+					logging.debug(self.tier_bosses)
 
 				while len(self.tier_bosses) > 0:
 					boss = self.tier_bosses.pop()
 
 					filtered = list(filter(lambda b: sorted(b.elements) == sorted(boss.elements), self.tier_bosses))
 
-					logging.debug("Adding {} weight to {}".format(len(filtered), boss))
+					if __debug__:
+						logging.debug("Adding {} weight to {}".format(len(filtered), boss))
 
 					boss.spawn_weight += sum(list(map(lambda b: b.spawn_weight, filtered)))
 
@@ -445,11 +468,14 @@ class AppState:
 
 
 			total_spawn_chance = sum(map(lambda b: b.get_spawn_chance(), self.bosses))
-			logging.debug("Total spawn chance: {}".format(total_spawn_chance))
+
+			if __debug__:
+				logging.debug("Total spawn chance: {}".format(total_spawn_chance))
 
 			assert abs(1.0 - total_spawn_chance) < 0.000001
 
-			logging.debug(self.bosses)
+			if __debug__:
+				logging.debug(self.bosses)
 
 		return self.bosses
 
@@ -462,16 +488,21 @@ class AppState:
 			raw_cards = raw_cards.split('\n')
 
 			for line in raw_cards:
-				logging.debug("Parsing line: {}".format(line))
+				if __debug__:
+					logging.debug("Parsing line: {}".format(line))
 
 				fields = line.split('\t')
 
 				elements = list(map(lambda e: Element[e], fields[0]))
-				logging.debug("Elements: {}".format(elements))
+
+				if __debug__:
+					logging.debug("Elements: {}".format(elements))
 
 				resource = Resource[fields[1][:1]]
 				resource_amount = int(fields[1][1:2])
-				logging.debug("Resource: {} {}".format(resource_amount, resource))
+
+				if __debug__:
+					logging.debug("Resource: {} {}".format(resource_amount, resource))
 
 				cards.append(Card(elements, resource, resource_amount))
 
@@ -487,8 +518,9 @@ class AppState:
 				deck = Deck(self, cards)
 				new_score = deck.get_score()
 
-				logging.debug(deck)
-				logging.debug("New score: {}".format(new_score))
+				if __debug__:
+					logging.debug(deck)
+					logging.debug("New score: {}".format(new_score))
 
 				deck_options.append(deck)
 
