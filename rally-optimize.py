@@ -193,6 +193,7 @@ class BossHandPair():
 		self.boss = boss
 		self.hand = hand
 		self.app = cd.app
+		self.valid = False
 
 		self.set_default_selection()
 
@@ -208,12 +209,13 @@ class BossHandPair():
 	def set_default_selection(self):
 		# sort the hand by value
 		sorted_cards = sorted(self.hand.cards, key=lambda c: self.boss.calculate_resources(c), reverse=True)
-		
+
 		self.select(sorted_cards[0])
 
 	def get_resources(self):
-		if not hasattr(self, 'resources'):
+		if not self.valid:
 			self.resources = self.boss.calculate_resources(self.selection) * self.boss.get_spawn_chance() * self.hand.draw_chance
+			self.valid = True
 
 		return self.resources
 
@@ -229,16 +231,14 @@ class BossHandPair():
 		return self.hand.get_flip_cost(self.boss)
 
 	def invalidate(self):
-		if hasattr(self, 'resources'):
-			del self.resources
-
-		self.cdeck.invalidate()
+		self.valid = False
 
 
 class ComplexDeck():
 	def __init__(self, deck):
 		self.deck = deck
 		self.app = deck.app
+		self.resources = ResourceContainer()
 
 		self.init_bh_pairs()
 
@@ -257,17 +257,17 @@ class ComplexDeck():
 				self.pairs.append(BossHandPair(self, boss, hand))
 
 	def get_resources(self):
-		if not hasattr(self, 'resources'):
-			self.resources = ResourceContainer()
+		# find all "invalid" pairs
+		# this is essentially any pair which either:
+		# a) resource value has never been added to the total
+		# b) has been flipped and needs to be recalculated
+		for pair in filter(lambda p: not p.valid, self.pairs):
+			if hasattr(pair, 'resources'):
+				self.resources -= pair.resources
 
-			for r in map(lambda p: p.get_resources(), self.pairs):
-				self.resources += r
+			self.resources += pair.get_resources()
 
 		return self.resources
-
-	def invalidate(self):
-		if hasattr(self, 'resources'):
-			del self.resources
 
 class Deck:
 	def __init__(self, app, cards):
