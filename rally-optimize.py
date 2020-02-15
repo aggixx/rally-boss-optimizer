@@ -3,6 +3,7 @@ import itertools
 import time
 import math
 import copy
+import inspect
 from statistics import mean
 from enum import Enum
 
@@ -11,13 +12,44 @@ import progressbar
 progressbar.streams.wrap_stderr()
 logging.basicConfig(level=logging.INFO)
 
-def profile(f):
+# TODO: Move profile stuff into a different module
 
+def profile(f):
     def f_timer(*args, **kwargs):
         start = time.time()
         result = f(*args, **kwargs)
         end = time.time()
-        logging.info("{} call took {}s.".format(f.__name__, end-start))
+        logging.info("{}.{} call took {}s.".format(f.__module__, f.__name__, end-start))
+
+        return result
+
+    return f_timer
+
+def profile_cumulative(f):
+    def f_timer(*args, **kwargs):
+        start = time.time()
+        result = f(*args, **kwargs)
+        end = time.time()
+
+        global app
+
+        if f.__name__ not in app.profile_dict:
+	        try:
+	        	is_method = inspect.getfullargspec(f)[0][0] == 'self'
+	        except IndexError:
+	        	is_method = False
+
+	        name = ""
+
+	        if is_method:
+	        	name = "{}.{}".format(args[0].__class__.__name__, f.__name__)
+	        else:
+	        	name = f.__name__
+
+        	app.profile_dict[f.__name__] = 0
+        	app.profile_dict_names[f.__name__] = name
+
+        app.profile_dict[f.__name__] += end-start
 
         return result
 
@@ -182,12 +214,12 @@ class Hand:
 		#logging.info(max_wood)
 		#logging.info(max_stone)
 
-		cost = abs(max_wood.total() - max_stone.total())
+		flip_cost = abs(max_wood.total() - max_stone.total())
 
 		if __debug__:
-			logging.debug("{} vs {} flip cost: {}".format(self, boss, cost))
+			logging.debug("{} vs {} flip cost: {}".format(self, boss, self.flip_cost))
 
-		return cost
+		return flip_cost
 
 class BossHandPair():
 	def __init__(self, cd, boss, hand):
@@ -229,6 +261,7 @@ class BossHandPair():
 
 		self.select(filtered_cards[0])
 
+	@profile_cumulative
 	def get_flip_cost(self):
 		return self.hand.get_flip_cost(self.boss)
 
@@ -435,6 +468,8 @@ class AppState:
 		self.bhp_cache = {}
 
 		self.profile = [0,0,0,0,0,0,0,0,0,0,0]
+		self.profile_dict = {}
+		self.profile_dict_names = {}
 
 	def get_bosses(self):
 		if not hasattr(self, 'bosses'):
@@ -550,8 +585,6 @@ class AppState:
 		for deck in true_decks:
 			print("#{}\t#{}\t{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
 
-		logging.info("Profile: {}".format(self.profile))
-
 
 app = AppState()
 app.load('input.txt')
@@ -561,3 +594,6 @@ start_time = time.time()
 app.run()
 
 logging.info("Execution time: {:.3f}s".format(time.time() - start_time))
+logging.info("Profile: {}".format(app.profile))
+for entry in app.profile_dict.items():
+	logging.info("Total time spent on '{}': {:.3f}s".format(app.profile_dict_names[entry[0]], entry[1]))
