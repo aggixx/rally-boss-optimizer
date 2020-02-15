@@ -188,11 +188,15 @@ class BossHandPair():
 	def __repr__(self):
 		return "<BHP-({}, {})-<{}>>".format(self.boss, self.hand, self.selection)
 
+	def select(self, card):
+		self.selection = card
+		self.invalidate()
+
 	def set_default_selection(self):
 		# sort the hand by value
 		sorted_cards = sorted(self.hand.cards, key=lambda c: self.boss.calculate_resources(c), reverse=True)
-		self.selection = sorted_cards[0]
-		self.invalidate()
+		
+		self.select(sorted_cards[0])
 
 	def get_resources(self):
 		if not hasattr(self, 'resources'):
@@ -206,8 +210,7 @@ class BossHandPair():
 
 		filtered_cards = list(filter(lambda c: c.resource != self.selection.resource, self.hand.cards))
 
-		self.selection = filtered_cards[0]
-		self.invalidate()
+		self.select(filtered_cards[0])
 
 	def get_flip_cost(self):
 		return self.hand.get_flip_cost(self.boss)
