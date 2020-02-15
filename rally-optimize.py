@@ -2,6 +2,7 @@ import logging
 import itertools
 import time
 import math
+import copy
 from statistics import mean
 from enum import Enum
 
@@ -9,6 +10,18 @@ import progressbar
 
 progressbar.streams.wrap_stderr()
 logging.basicConfig(level=logging.INFO)
+
+def profile(f):
+
+    def f_timer(*args, **kwargs):
+        start = time.time()
+        result = f(*args, **kwargs)
+        end = time.time()
+        logging.info("{} call took {}s.".format(f.__name__, end-start))
+
+        return result
+
+    return f_timer
 
 class Element(Enum):
 	#NONE = 0
