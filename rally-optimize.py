@@ -378,8 +378,10 @@ class Card:
 		return "<Card-{}-{}{}>".format("".join(map(lambda e: e.short(), self.elements)), self.resource.short(), self.resource_amount)
 
 class Boss:
-	def __init__(self, elements):
+	def __init__(self, app, elements):
+		self.app = app
 		self.elements = elements
+		self.elements_set = set(elements)
 
 		n = 4
 		r = len(elements)
@@ -399,28 +401,19 @@ class Boss:
 		return self.spawn_weight / self.spawn_total / 4
 
 	def calculate_resources(self, card):
-		logging.debug("Calculating resource gain for {} vs {}...".format(card, self))
+		matches = len(list(filter(lambda e: e in self.elements_set, card.elements)))
+		total_amount = matches * card.resource_amount
 
-		logging.debug("{} elements: {}".format(card, card.elements))
-		logging.debug("{} elements: {}".format(self, self.elements))
+		#logging.debug("{} vs {} resource amount: {} {}".format(card, self, total_amount, card.resource))
 
-		matching = list(filter(lambda e: e in self.elements, card.elements))
-
-		logging.debug("Matching elements: {}".format(matching))
-
-		amount = len(matching) * card.resource_amount
-
-		logging.debug("Resource amount: {} {}".format(amount, card.resource))
-
-		rc = ResourceContainer.create(amount, card.resource)
-
-		assert isinstance(rc, ResourceContainer)
-
-		return rc
+		return ResourceContainer.create(total_amount, card.resource)
 
 class AppState:
 	def __init__(self):
 		self.hand_cache = {}
+		self.bhp_cache = {}
+
+		self.profile = [0,0,0,0,0,0,0,0]
 
 	def get_bosses(self):
 		if not hasattr(self, 'bosses'):
@@ -432,7 +425,7 @@ class AppState:
 				self.tier_bosses = []
 
 				for elements in itertools.product(Element, repeat=numElements):
-					self.tier_bosses.append(Boss(list(elements)))
+					self.tier_bosses.append(Boss(self, list(elements)))
 
 				logging.debug(self.tier_bosses)
 
@@ -524,6 +517,8 @@ class AppState:
 
 		for deck in true_decks:
 			print("#{}\t#{}\t{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
+
+		logging.info("Profile: {}".format(self.profile))
 
 
 app = AppState()
