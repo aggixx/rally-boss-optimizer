@@ -143,21 +143,15 @@ class Hand:
 	def __repr__(self):
 		return repr(self.cards)
 
-	def calc_score(self):
-		resources = ResourceContainer()
-
-		for boss in self.app.get_bosses():
-			max_resources = max(map(lambda c: boss.calculate_resources(c), self.cards))
-			resources += max_resources * boss.get_spawn_chance()
-
-		return resources
-
-	def cache(self):
-		self.app.hand_cache[repr(self.cards)] = self.calc_score()
-
 	def get_score(self):
 		if repr(self.cards) not in self.app.hand_cache:
-			self.cache()
+			resources = ResourceContainer()
+
+			for boss in self.app.get_bosses():
+				max_resources = max(map(lambda c: boss.calculate_resources(c), self.cards))
+				resources += max_resources * boss.get_spawn_chance()
+
+			self.app.hand_cache[repr(self.cards)] = resources
 
 		return self.app.hand_cache[repr(self.cards)] * self.draw_chance
 
