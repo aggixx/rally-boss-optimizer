@@ -28,11 +28,11 @@ class Element(Enum):
 	FIRE = 2
 	F = 2
 
-	LIGHTNING = 3
-	L = 3
+	ICE = 3
+	I = 3
 
-	ICE = 4
-	I = 4
+	LIGHTNING = 4
+	L = 4
 
 	def __str__(self):
 		return self.name.title()
