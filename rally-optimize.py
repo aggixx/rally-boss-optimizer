@@ -174,8 +174,9 @@ class Hand:
 		except ValueError:
 			max_stone = ResourceContainer()
 
-		#logging.info(max_wood)
-		#logging.info(max_stone)
+		if __debug__:
+			logging.debug("Wood: ".format(max_wood))
+			logging.debug("Stone: ".format(max_stone))
 
 		flip_cost = abs(max_wood.total() - max_stone.total())
 
