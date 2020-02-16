@@ -214,6 +214,11 @@ class BossHandPair():
 		if not self.valid:
 			self.resources = self.boss.calculate_resources(self.selection) * self.boss.get_spawn_chance() * self.hand.draw_chance
 			self.valid = True
+			# WARNING: If this is called from anywhere other than ComplexDeck resources, it may cause CDs resource state to be corrupted
+			try:
+				self.cdeck.invalids.remove(self)
+			except ValueError:
+				pass
 
 		return self.resources
 
@@ -225,12 +230,13 @@ class BossHandPair():
 
 		self.select(filtered_cards[0])
 
-	@profile_cumulative
 	def get_flip_cost(self):
 		return self.hand.get_flip_cost(self.boss)
 
 	def invalidate(self):
-		self.valid = False
+		if self.valid:
+			self.valid = False
+			self.cdeck.invalids.append(self)
 
 
 class ComplexDeck():
@@ -238,6 +244,8 @@ class ComplexDeck():
 		self.deck = deck
 		self.app = deck.app
 		self.resources = ResourceContainer()
+		self.invalids = []
+		self.initial_tally_complete = False
 
 		self.init_bh_pairs()
 
@@ -255,16 +263,24 @@ class ComplexDeck():
 			for hand in hands:
 				self.pairs.append(BossHandPair(self, boss, hand))
 
+	@profile_cumulative
 	def get_resources(self):
-		# find all "invalid" pairs
-		# this is essentially any pair which either:
-		# a) resource value has never been added to the total
-		# b) has been flipped and needs to be recalculated
-		for pair in filter(lambda p: not p.valid, self.pairs):
-			if hasattr(pair, 'resources'):
-				self.resources -= pair.resources
+		# choose an efficient tallying approach based on what kind of count we're doing
+		if not self.initial_tally_complete:
+			# sum the value of all pairs
+			for pair in self.pairs:
+				self.resources += pair.get_resources()
 
-			self.resources += pair.get_resources()
+			self.initial_tally_complete = True
+		else:
+			for pair in self.invalids:
+				# Deduct the old value, then calculate and add the new value.
+				self.resources -= pair.resources
+				self.resources += pair.get_resources()
+
+		# clear invalids in both cases, since its possible that
+		# the list could contain something even on the initial tally
+		self.invalids = []
 
 		return self.resources
 
