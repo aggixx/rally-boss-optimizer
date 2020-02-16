@@ -361,7 +361,7 @@ class Deck:
 
 class Card:
 	def __init__(self, elements, resource, resource_amount):
-		self.elements = tuple(elements)
+		self.elements = tuple(sorted(elements))
 		self.resource_amount = resource_amount
 		self.resource = resource
 
