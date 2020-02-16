@@ -426,7 +426,8 @@ class AppState:
 	def __init__(self):
 		self.hand_cache = {}
 
-		self.dump_score_data = False
+		self.dump_score_data = True
+		self.use_random_deck = True
 
 	def get_bosses(self):
 		if not hasattr(self, 'bosses'):
@@ -472,29 +473,33 @@ class AppState:
 	def load(self, path):
 		cards = []
 
-		with open(path, 'r') as f:
-			raw_cards = f.read()
+		if self.use_random_deck:
+			for i in range(14):
+				cards.append(Card.random())
+		else:
+			with open(path, 'r') as f:
+				raw_cards = f.read()
 
-			raw_cards = raw_cards.split('\n')
+				raw_cards = raw_cards.split('\n')
 
-			for line in raw_cards:
-				if __debug__:
-					logging.debug("Parsing line: {}".format(line))
+				for line in raw_cards:
+					if __debug__:
+						logging.debug("Parsing line: {}".format(line))
 
-				fields = line.split('\t')
+					fields = line.split('\t')
 
-				elements = list(map(lambda e: Element[e], fields[0]))
+					elements = list(map(lambda e: Element[e], fields[0]))
 
-				if __debug__:
-					logging.debug("Elements: {}".format(elements))
+					if __debug__:
+						logging.debug("Elements: {}".format(elements))
 
-				resource = Resource[fields[1][:1]]
-				resource_amount = int(fields[1][1:2])
+					resource = Resource[fields[1][:1]]
+					resource_amount = int(fields[1][1:2])
 
-				if __debug__:
-					logging.debug("Resource: {} {}".format(resource_amount, resource))
+					if __debug__:
+						logging.debug("Resource: {} {}".format(resource_amount, resource))
 
-				cards.append(Card(elements, resource, resource_amount))
+					cards.append(Card(elements, resource, resource_amount))
 
 		self.deck = Deck(self, cards)
 
