@@ -46,8 +46,9 @@ def profile_cumulative(f):
     return f_timer
 
 def log_digest():
-    logging.info("       \tSUM\tMEAN\tMEDIAN\tMIN\tMAX\tCOUNT\tDESC")
-    logging.info("=========================================================================================")
+    if cumulative_data:
+        logging.info("       \tSUM\tMEAN\tMEDIAN\tMIN\tMAX\tCOUNT\tDESC")
+        logging.info("=========================================================================================")
 
     for entry in cumulative_data.items():
         key = entry[0]
