@@ -412,18 +412,18 @@ class AppState:
 			self.bosses = []
 
 			for numElements in range(1, 5):
-				self.tier_bosses = []
+				tier_bosses = []
 
 				for elements in itertools.product(Element, repeat=numElements):
-					self.tier_bosses.append(Boss(self, list(elements)))
+					tier_bosses.append(Boss(self, list(elements)))
 
 				if __debug__:
 					logging.debug(self.tier_bosses)
 
-				while self.tier_bosses:
-					boss = self.tier_bosses.pop()
+				while tier_bosses:
+					boss = tier_bosses.pop()
 
-					filtered = list(filter(lambda b: sorted(b.elements) == sorted(boss.elements), self.tier_bosses))
+					filtered = list(filter(lambda b: sorted(b.elements) == sorted(boss.elements), tier_bosses))
 
 					if __debug__:
 						logging.debug("Adding {} weight to {}".format(len(filtered), boss))
@@ -433,7 +433,7 @@ class AppState:
 					self.bosses.append(boss)
 
 					for boss in filtered:
-						self.tier_bosses.remove(boss)
+						tier_bosses.remove(boss)
 
 
 			total_spawn_chance = sum(map(lambda b: b.get_spawn_chance(), self.bosses))
