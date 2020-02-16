@@ -317,9 +317,8 @@ class Deck:
 		if __debug__:
 			logging.debug("Minimizing delta on {}...".format(self))
 
-		with ChunkProfiler('minimize-1'):
-			# 1) create complex deck
-			cd = ComplexDeck(self)
+		# 1) create complex deck
+		cd = ComplexDeck(self)
 
 		# 2a) calculate the total wood and stone gained by the deck
 		resources = cd.get_resources()
@@ -347,12 +346,11 @@ class Deck:
 			bhp = bh_pairs_f.pop(0)
 			bhp.flip()
 
-			with ChunkProfiler('minimize-5'):
-				if cd.get_resources().delta() < best_delta:
-					best_delta = cd.get_resources().delta()
-				else:
-					bhp.flip()
-					break 
+			if cd.get_resources().delta() < best_delta:
+				best_delta = cd.get_resources().delta()
+			else:
+				bhp.flip()
+				break 
 
 		self.resources = cd.get_resources()
 		self.score = min(self.resources.wood, self.resources.stone) * 2
