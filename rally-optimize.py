@@ -184,7 +184,7 @@ class Hand:
 		flip_cost = abs(max_wood.total() - max_stone.total())
 
 		if __debug__:
-			logging.debug("{} vs {} flip cost: {}".format(self, boss, self.flip_cost))
+			logging.debug("{} vs {} flip cost: {}".format(self, boss, flip_cost))
 
 		return flip_cost
 
