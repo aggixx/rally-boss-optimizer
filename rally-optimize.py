@@ -370,7 +370,7 @@ class Card:
 	@classmethod
 	def random(cls, minE=1, maxE=4):
 		elements = random.choices(list(Element), k=random.randint(minE,maxE))
-		resource = random.choice(list(Resource))
+		resource = random.choice((Resource.WOOD, Resource.STONE))
 		resource_amount = random.randint(0, 4)
 
 		if __debug__:
