@@ -327,7 +327,9 @@ class Deck:
 		best_delta = resources.delta()
 
 		if best_delta == 0:
-			return resources.total()
+			self.resources = cd.get_resources()
+			self.score = min(self.resources.wood, self.resources.stone) * 2
+			return
 
 		# 3) determine which resource we need to gain more of
 		target_resource = resources.scarce()
