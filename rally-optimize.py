@@ -458,15 +458,13 @@ class AppState:
 					for boss in filtered:
 						tier_bosses.remove(boss)
 
-
-			total_spawn_chance = sum(map(lambda b: b.get_spawn_chance(), self.bosses))
-
 			if __debug__:
+				total_spawn_chance = sum(map(lambda b: b.get_spawn_chance(), self.bosses))
+
 				logging.debug("Total spawn chance: {}".format(total_spawn_chance))
 
-			assert abs(1.0 - total_spawn_chance) < 0.000001
+				assert abs(1.0 - total_spawn_chance) < 0.000001
 
-			if __debug__:
 				logging.debug(self.bosses)
 
 		return self.bosses
