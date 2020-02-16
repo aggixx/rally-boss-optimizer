@@ -4,6 +4,7 @@ import time
 import math
 import copy
 import inspect
+import random
 from statistics import mean
 from enum import Enum
 from functools import lru_cache
@@ -366,6 +367,19 @@ class Card:
 	def __repr__(self):
 		return "<Card-{}-{}{}>".format("".join(map(lambda e: e.short(), self.elements)), self.resource.short(), self.resource_amount)
 
+	@classmethod
+	def random(cls, minE=1, maxE=4):
+		elements = random.choices(list(Element), k=random.randint(minE,maxE))
+		resource = random.choice(list(Resource))
+		resource_amount = random.randint(0, 4)
+
+		if __debug__:
+			logging.debug(elements)
+			logging.debug(resource)
+			logging.debug(resource_amount)
+
+		return cls(elements, resource, resource_amount)
+
 class Boss:
 	def __init__(self, app, elements):
 		self.app = app
@@ -401,6 +415,12 @@ class Boss:
 			logging.debug("{} vs {} resource amount: {} {}".format(card_elements, self, total_amount, card.resource))
 
 		return ResourceContainer.create(total_amount, card_resource)
+
+	@classmethod
+	def random(cls, app):
+		elements = random.choices(list(Element), k=random.randint(1,4))
+
+		return cls(app, elements)
 
 class AppState:
 	def __init__(self):
