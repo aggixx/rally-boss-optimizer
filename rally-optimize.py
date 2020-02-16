@@ -78,6 +78,8 @@ class ResourceContainer:
 			return cls(wood=amount)
 		elif resource == Resource.STONE:
 			return cls(stone=amount)
+		else:
+			raise Exception()
 
 	def __repr__(self):
 		return "<{:.3f} Wood, {:.3f} Stone>".format(self.wood, self.stone)
