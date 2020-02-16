@@ -430,8 +430,8 @@ class AppState:
 	def __init__(self):
 		self.hand_cache = {}
 
-		self.dump_score_data = True
-		self.use_random_deck = True
+		self.dump_score_data = False
+		self.use_random_deck = False
 
 	def get_bosses(self):
 		if not hasattr(self, 'bosses'):
@@ -532,21 +532,30 @@ class AppState:
 		for deck_option in deck_options[:10]:
 			print("#{}\t{:.3f}\t{}\t{}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
 
-		n_true_decks = math.floor(len(deck_options) * 0.10)
-
 		logging.info("Minimizing deltas...")
 
-		for i in progressbar.progressbar(range(n_true_decks)):
-			deck = deck_options[i]
-			deck.minimize_delta()
+		highest_score = 0
+		true_decks = []
 
-		true_decks = sorted(deck_options[:n_true_decks], key=lambda d: d.get_score(), reverse=True)
+		for i in progressbar.progressbar(range(len(deck_options))):
+			deck = deck_options[i]
+
+			if deck.resources.total() < highest_score:
+				continue
+
+			deck.minimize_delta()
+			true_decks.append(deck)
+
+			if deck.get_score() > highest_score:
+				highest_score = deck.get_score()
+
+		true_decks.sort(key=lambda d: d.get_score(), reverse=True)
 
 		print("================================== Trues Scores ===========================================================")
 		print("RNK\tR2\tSCORE\tRESOURCES                     \tDESCRIPTION")
 		print("===========================================================================================================")
 
-		for deck in true_decks:
+		for deck in true_decks[:10]:
 			print("#{}\t#{}\t{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
 
 		if app.dump_score_data:
