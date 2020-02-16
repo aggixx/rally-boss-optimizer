@@ -6,6 +6,7 @@ import copy
 import inspect
 from statistics import mean
 from enum import Enum
+from functools import lru_cache
 
 import progressbar
 
@@ -382,7 +383,7 @@ class Deck:
 
 class Card:
 	def __init__(self, elements, resource, resource_amount):
-		self.elements = elements
+		self.elements = tuple(elements)
 		self.resource_amount = resource_amount
 		self.resource = resource
 
@@ -416,13 +417,17 @@ class Boss:
 		return self.spawn_weight / self.spawn_total / 4
 
 	def calculate_resources(self, card):
-		matches = len(list(filter(lambda e: e in self.elements_set, card.elements)))
-		total_amount = matches * card.resource_amount
+		return self.__calculate_resources__(card.elements, card.resource_amount, card.resource)
+
+	@lru_cache(maxsize=16384)
+	def __calculate_resources__(self, card_elements, card_resource_amount, card_resource):
+		matches = len(list(filter(lambda e: e in self.elements_set, card_elements)))
+		total_amount = matches * card_resource_amount
 
 		if __debug__:
-			logging.debug("{} vs {} resource amount: {} {}".format(card, self, total_amount, card.resource))
+			logging.debug("{} vs {} resource amount: {} {}".format(card_elements, self, total_amount, card.resource))
 
-		return ResourceContainer.create(total_amount, card.resource)
+		return ResourceContainer.create(total_amount, card_resource)
 
 class AppState:
 	def __init__(self):
