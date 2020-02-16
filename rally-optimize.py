@@ -338,15 +338,13 @@ class Deck:
 		if __debug__:
 			logging.debug("Minimizing delta on {}...".format(self))
 
-		# 1) create complex deck
-		time_p1 = time.time()
-		cd = ComplexDeck(self)
-		self.app.profile[1] += time.time() - time_p1
+		with ChunkProfiler('minimize-1'):
+			# 1) create complex deck
+			cd = ComplexDeck(self)
 
-		# 2a) calculate the total wood and stone gained by the deck
-		time_p2 = time.time()
-		resources = cd.get_resources()
-		self.app.profile[2] += time.time() - time_p2
+		with ChunkProfiler('minimize-2'):
+			# 2a) calculate the total wood and stone gained by the deck
+			resources = cd.get_resources()
 
 		# 2b) calculate the wood-stone delta
 		best_delta = resources.delta()
@@ -357,46 +355,29 @@ class Deck:
 		# 3) determine which resource we need to gain more of
 		target_resource = resources.scarce()
 
-		time_p4 = time.time()
 		# 4) filter list of pairs to ones that can have their resource flipped favorably
 		bh_pairs_f = list(filter(lambda bhp: bhp.is_flippable and bhp.get_resources().total() > 0 and bhp.get_resources().surplus() != target_resource, cd.pairs))
 
 		# 5) sort list of boss-hand pairs by its opportunity cost of switching resources, desc
 		bh_pairs_f.sort(key=lambda bhp: bhp.get_flip_cost())
-		self.app.profile[4] += time.time() - time_p4
-
-		#a_time = time.time()
 			
 		if __debug__:
 			logging.debug("Start delta: {}".format(best_delta))
 
 		# 6) one by one, flip the resource gain of each hand-boss pair until the wood-stone delta is minimized
 		while len(bh_pairs_f) > 0:
-			b_time = time.time()
-
 			bhp = bh_pairs_f.pop(0)
 			bhp.flip()
 
-			self.app.profile[5] += time.time() - b_time 
-			c_time = time.time()
+			with ChunkProfiler('minimize-5'):
+				if cd.get_resources().delta() < best_delta:
+					best_delta = cd.get_resources().delta()
+				else:
+					bhp.flip()
+					break 
 
-			if cd.get_resources().delta() < best_delta:
-				best_delta = cd.get_resources().delta()
-				
-				self.app.profile[6] += time.time() - c_time 
-			else:
-				bhp.flip()
-				
-				self.app.profile[6] += time.time() - c_time 
-				break 
-
-		#a2_time = time.time()
-		#logging.info("Step 6 elapsed: {:.3f}s".format(a2_time-a_time))
-
-		time_p7 = time.time()
 		self.resources = cd.get_resources()
 		self.score = min(self.resources.wood, self.resources.stone) * 2
-		self.app.profile[7] += time.time() - time_p7
 
 class Card:
 	def __init__(self, elements, resource, resource_amount):
@@ -450,8 +431,6 @@ class AppState:
 	def __init__(self):
 		self.hand_cache = {}
 		self.bhp_cache = {}
-
-		self.profile = [0,0,0,0,0,0,0,0,0,0,0]
 
 	def get_bosses(self):
 		if not hasattr(self, 'bosses'):
@@ -576,5 +555,4 @@ start_time = time.time()
 app.run()
 
 logging.info("Execution time: {:.3f}s".format(time.time() - start_time))
-logging.info("Profile: {}".format(app.profile))
 profile_tools.log_digest()
