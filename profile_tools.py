@@ -47,3 +47,19 @@ def profile_cumulative(f):
 def log_digest():
     for entry in cumulative_data.items():
         logging.info("Total time spent on '{}': {:.3f}s".format(method_names[entry[0]], entry[1]))
+
+class ChunkProfiler(object):
+    def __init__(self, desc):
+        self.desc = desc
+
+    def __enter__(self):
+        self.start = time.time()
+
+    def __exit__(self, type, value, traceback):
+        duration = time.time() - self.start
+
+        if self.desc not in cumulative_data:
+            cumulative_data[self.desc] = 0
+            method_names[self.desc] = "chunk-{}".format(self.desc)
+
+        cumulative_data[self.desc] += duration

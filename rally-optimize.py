@@ -12,6 +12,7 @@ import progressbar
 import profile_tools
 from profile_tools import profile_cumulative
 from profile_tools import profile
+from profile_tools import ChunkProfiler
 
 progressbar.streams.wrap_stderr()
 logging.basicConfig(level=logging.INFO)
