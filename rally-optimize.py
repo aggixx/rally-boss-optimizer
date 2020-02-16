@@ -338,7 +338,7 @@ class Deck:
 			logging.debug("Start delta: {}".format(best_delta))
 
 		# 6) one by one, flip the resource gain of each hand-boss pair until the wood-stone delta is minimized
-		while len(bh_pairs_f) > 0:
+		while bh_pairs_f:
 			bhp = bh_pairs_f.pop(0)
 			bhp.flip()
 
@@ -420,7 +420,7 @@ class AppState:
 				if __debug__:
 					logging.debug(self.tier_bosses)
 
-				while len(self.tier_bosses) > 0:
+				while self.tier_bosses:
 					boss = self.tier_bosses.pop()
 
 					filtered = list(filter(lambda b: sorted(b.elements) == sorted(boss.elements), self.tier_bosses))
