@@ -416,7 +416,7 @@ class Boss:
 		total_amount = matches * card_resource_amount
 
 		if __debug__:
-			logging.debug("{} vs {} resource amount: {} {}".format(card_elements, self, total_amount, card.resource))
+			logging.debug("{} vs {} resource amount: {} {}".format(card_elements, self, total_amount, card_resource))
 
 		return ResourceContainer.create(total_amount, card_resource)
 
@@ -446,7 +446,7 @@ class AppState:
 					tier_bosses.append(Boss(self, list(elements)))
 
 				if __debug__:
-					logging.debug(self.tier_bosses)
+					logging.debug(tier_bosses)
 
 				while tier_bosses:
 					boss = tier_bosses.pop()
