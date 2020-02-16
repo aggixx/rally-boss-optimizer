@@ -306,7 +306,9 @@ class Deck:
 
 			self.base_score = self.resources.total()
 			self.base_delta = self.resources.delta()
-			self.score = self.base_score - self.base_delta * 0.0842
+			#self.score = self.base_score - self.base_delta * 0.0842
+			#self.score = self.base_score - 0.11424 * (self.base_delta / 1.36) ** 3.475
+			self.score = self.base_score - 0.96 * self.base_delta ** 2 / self.base_score
 
 			if __debug__:
 				logging.debug("Deck score: {}".format(self.score))
