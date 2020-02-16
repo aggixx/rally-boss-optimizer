@@ -191,7 +191,6 @@ class BossHandPair():
 		self.boss = boss
 		self.hand = hand
 		self.app = cd.app
-		self.valid = False
 
 		self.set_default_selection()
 
@@ -202,7 +201,7 @@ class BossHandPair():
 
 	def select(self, card):
 		self.selection = card
-		self.invalidate()
+		self.recalculate()
 
 	def set_default_selection(self):
 		# sort the hand by value
@@ -210,16 +209,15 @@ class BossHandPair():
 
 		self.select(sorted_cards[0])
 
-	def get_resources(self):
-		if not self.valid:
-			self.resources = self.boss.calculate_resources(self.selection) * self.boss.get_spawn_chance() * self.hand.draw_chance
-			self.valid = True
-			# WARNING: If this is called from anywhere other than ComplexDeck resources, it may cause CDs resource state to be corrupted
-			try:
-				self.cdeck.invalids.remove(self)
-			except ValueError:
-				pass
+	def recalculate(self):
+		if hasattr(self, 'resources'):
+			self.cdeck.resources -= self.resources
 
+		self.resources = self.boss.calculate_resources(self.selection) * self.boss.get_spawn_chance() * self.hand.draw_chance
+
+		self.cdeck.resources += self.resources
+
+	def get_resources(self):
 		return self.resources
 
 	def flip(self):
@@ -233,11 +231,6 @@ class BossHandPair():
 	def get_flip_cost(self):
 		return self.hand.get_flip_cost(self.boss)
 
-	def invalidate(self):
-		if self.valid:
-			self.valid = False
-			self.cdeck.invalids.append(self)
-
 
 class ComplexDeck():
 	def __init__(self, deck):
@@ -245,7 +238,6 @@ class ComplexDeck():
 		self.app = deck.app
 		self.resources = ResourceContainer()
 		self.invalids = []
-		self.initial_tally_complete = False
 
 		self.init_bh_pairs()
 
@@ -263,25 +255,7 @@ class ComplexDeck():
 			for hand in hands:
 				self.pairs.append(BossHandPair(self, boss, hand))
 
-	@profile_cumulative
 	def get_resources(self):
-		# choose an efficient tallying approach based on what kind of count we're doing
-		if not self.initial_tally_complete:
-			# sum the value of all pairs
-			for pair in self.pairs:
-				self.resources += pair.get_resources()
-
-			self.initial_tally_complete = True
-		else:
-			for pair in self.invalids:
-				# Deduct the old value, then calculate and add the new value.
-				self.resources -= pair.resources
-				self.resources += pair.get_resources()
-
-		# clear invalids in both cases, since its possible that
-		# the list could contain something even on the initial tally
-		self.invalids = []
-
 		return self.resources
 
 class Deck:
@@ -342,9 +316,8 @@ class Deck:
 			# 1) create complex deck
 			cd = ComplexDeck(self)
 
-		with ChunkProfiler('minimize-2'):
-			# 2a) calculate the total wood and stone gained by the deck
-			resources = cd.get_resources()
+		# 2a) calculate the total wood and stone gained by the deck
+		resources = cd.get_resources()
 
 		# 2b) calculate the wood-stone delta
 		best_delta = resources.delta()
