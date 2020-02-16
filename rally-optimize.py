@@ -301,7 +301,9 @@ class Deck:
 			if __debug__:
 				logging.debug("{} deck resources: {}".format(self, self.resources))
 
-			self.score = self.resources.total() - self.resources.delta() / 2
+			self.base_score = self.resources.total()
+			self.base_delta = self.resources.delta()
+			self.score = self.base_score - self.base_delta * 0.0842
 
 			if __debug__:
 				logging.debug("Deck score: {}".format(self.score))
@@ -404,6 +406,8 @@ class AppState:
 	def __init__(self):
 		self.hand_cache = {}
 		self.bhp_cache = {}
+
+		self.dump_score_data = False
 
 	def get_bosses(self):
 		if not hasattr(self, 'bosses'):
@@ -518,6 +522,17 @@ class AppState:
 
 		for deck in true_decks:
 			print("#{}\t#{}\t{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
+
+		if app.dump_score_data:
+			tsv = ""
+
+			for deck in true_decks:
+				tsv += "{}\t{}\t{}\n".format(deck.base_score, deck.base_delta, deck.get_score())
+
+			with open('scores.tsv', 'w') as f:
+				f.write(tsv)
+
+			logging.info("Dumped score data to scores.tsv.")
 
 
 app = AppState()
