@@ -425,7 +425,6 @@ class Boss:
 class AppState:
 	def __init__(self):
 		self.hand_cache = {}
-		self.bhp_cache = {}
 
 		self.dump_score_data = False
 
