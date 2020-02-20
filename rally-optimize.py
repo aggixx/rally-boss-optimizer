@@ -229,8 +229,9 @@ class BossHandPair():
 			raise Exception()
 
 		filtered_cards = list(filter(lambda c: c.resource != self.selection.resource, self.hand.cards))
+		sorted_cards = sorted(filtered_cards, key=lambda c: self.boss.calculate_resources(c), reverse=True)
 
-		self.select(filtered_cards[0])
+		self.select(sorted_cards[0])
 
 	def get_flip_cost(self):
 		return self.hand.get_flip_cost(self.boss)
