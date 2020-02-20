@@ -9,6 +9,7 @@ import json
 from statistics import mean
 from enum import Enum
 from functools import lru_cache
+from functools import cached_property
 
 import progressbar
 
@@ -159,7 +160,7 @@ class Hand:
 		if repr(self.cards) not in self.app.hand_cache:
 			resources = ResourceContainer()
 
-			for boss in self.app.get_bosses():
+			for boss in self.app.bosses:
 				max_resources = max(map(lambda c: boss.calculate_resources(c), self.cards))
 				resources += max_resources * boss.get_spawn_chance()
 
@@ -248,7 +249,7 @@ class ComplexDeck():
 
 	def init_bh_pairs(self):
 		# 1) calculate all combinations of bosses
-		bosses = self.app.get_bosses()
+		bosses = self.app.bosses
 
 		# 2) calculate all possible hands for this deck
 		hands = self.deck.get_hands()
@@ -371,6 +372,10 @@ class Deck:
 
 		if self.app.dump_score_data:
 			cd.dump_score_data()
+
+	@cached_property
+	def get_collection_bonus(self):
+		return 1.00 + 0.01 * sum(list(map(lambda c: len(c.elements), self.cards)))
 class Card:
 	def __init__(self, elements, resource, resource_amount):
 		self.elements = tuple(sorted(elements))
@@ -446,46 +451,46 @@ class AppState:
 		self.use_random_deck = False
 		self.score_data = {}
 
-	def get_bosses(self):
-		if not hasattr(self, 'bosses'):
-			logging.info("Creating boss combinations...")
+	@cached_property
+	def bosses(self):
+		logging.info("Creating boss combinations...")
 
-			self.bosses = []
+		bosses = []
 
-			for numElements in range(1, 5):
-				tier_bosses = []
+		for numElements in range(1, 5):
+			tier_bosses = []
 
-				for elements in itertools.product(Element, repeat=numElements):
-					tier_bosses.append(Boss(self, list(elements)))
-
-				if __debug__:
-					logging.debug(tier_bosses)
-
-				while tier_bosses:
-					boss = tier_bosses.pop()
-
-					filtered = list(filter(lambda b: sorted(b.elements) == sorted(boss.elements), tier_bosses))
-
-					if __debug__:
-						logging.debug("Adding {} weight to {}".format(len(filtered), boss))
-
-					boss.spawn_weight += sum(list(map(lambda b: b.spawn_weight, filtered)))
-
-					self.bosses.append(boss)
-
-					for boss in filtered:
-						tier_bosses.remove(boss)
+			for elements in itertools.product(Element, repeat=numElements):
+				tier_bosses.append(Boss(self, list(elements)))
 
 			if __debug__:
-				total_spawn_chance = sum(map(lambda b: b.get_spawn_chance(), self.bosses))
+				logging.debug(tier_bosses)
 
-				logging.debug("Total spawn chance: {}".format(total_spawn_chance))
+			while tier_bosses:
+				boss = tier_bosses.pop()
 
-				assert abs(1.0 - total_spawn_chance) < 0.000001
+				filtered = list(filter(lambda b: sorted(b.elements) == sorted(boss.elements), tier_bosses))
 
-				logging.debug(self.bosses)
+				if __debug__:
+					logging.debug("Adding {} weight to {}".format(len(filtered), boss))
 
-		return self.bosses
+				boss.spawn_weight += sum(list(map(lambda b: b.spawn_weight, filtered)))
+
+				bosses.append(boss)
+
+				for boss in filtered:
+					tier_bosses.remove(boss)
+
+		if __debug__:
+			total_spawn_chance = sum(map(lambda b: b.get_spawn_chance(), bosses))
+
+			logging.debug("Total spawn chance: {}".format(total_spawn_chance))
+
+			assert abs(1.0 - total_spawn_chance) < 0.000001
+
+			logging.debug(bosses)
+
+		return bosses
 
 	def load(self, path):
 		cards = []
