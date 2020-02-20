@@ -426,10 +426,10 @@ class Card:
 		return "<Card-{}-{}{}>".format("".join(map(lambda e: e.short(), self.elements)), self.resource.short(), self.resource_amount)
 
 	@classmethod
-	def random(cls, minE=1, maxE=4):
+	def random(cls, minE=1, maxE=4, minR=0, maxR=4):
 		elements = random.choices(list(Element), k=random.randint(minE,maxE))
 		resource = random.choice((Resource.WOOD, Resource.STONE))
-		resource_amount = random.randint(0, 4)
+		resource_amount = random.randint(minR, maxR)
 
 		if __debug__:
 			logging.debug(elements)
@@ -688,13 +688,6 @@ class AppState:
 
 			logging.info("Dumped score data to scores.json.")
 
-		'''
-		for deck in true_decks:
-			for card in deck.cards:
-				for boss in app.bosses:
-					boss.calculate_damage(card, deck)
-		'''
-
 		self.deck = true_decks[0]
 
 	def run(self):
@@ -705,7 +698,7 @@ class AppState:
 
 			# draw 3 cards
 			for i in range(1):
-				card = Card.random(minE=4)
+				card = Card.random(minE=4, minR=4)
 				drew.append(card)
 				self.deck.add_card(card)
 
