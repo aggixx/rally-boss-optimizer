@@ -237,7 +237,6 @@ class BossHandPair():
 	def get_flip_cost(self):
 		return self.hand.get_flip_cost(self.boss)
 
-
 class ComplexDeck():
 	def __init__(self, deck):
 		self.deck = deck
@@ -303,7 +302,6 @@ class Deck:
 
 	def get_score(self):
 		if not hasattr(self, 'score'):
-
 			if __debug__:
 				logging.debug("Scoring {}...".format(self))
 
@@ -496,7 +494,7 @@ class AppState:
 		cards = []
 
 		if self.use_random_deck:
-			for i in range(14):
+			for i in range(10):
 				cards.append(Card.random())
 		else:
 			with open(path, 'r') as f:
