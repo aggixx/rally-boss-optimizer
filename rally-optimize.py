@@ -623,32 +623,58 @@ class AppState:
 
 		self.deck = Deck(self, cards)
 
+	evaluated = 0
+
+	def combinations_recursive(self, source_deck, candidates):
+		#logging.info("recursing {}".format(len(source_deck)-1))
+
+		for cards in itertools.combinations(source_deck.cards, len(source_deck)-1):
+			if frozenset(cards) in candidates:
+				continue
+
+			deck = Deck(source_deck.app, list(cards))
+
+			candidates.add(frozenset(deck.cards))
+
+			self.evaluated += 1
+
+			if len(deck) > 10 and deck.get_damage() > source_deck.get_damage():
+				#logging.info("{} {} vs {} {}".format(deck, deck.get_damage(), source_deck, source_deck.get_damage()))
+				self.combinations_recursive(deck, candidates)
+
+
 	def maximize_damage(self, true_scores=True):
-		deck_options = []
+		logging.info("Creating deck combinations...")
+		cards_set = set()
+		cards_set.add(frozenset(self.deck.cards))
 
-		for deck_size in range(len(self.deck), 9, -1):
-			#logging.info("Deck size: {}".format(deck_size))
+		self.evaluated = 1
+		self.combinations_recursive(self.deck, cards_set)
 
-			for cards in itertools.combinations(self.deck.cards, deck_size):
-				deck = Deck(self, list(cards))
-				new_score = deck.get_score()
+		logging.info("Evaluated {} deck options.".format(self.evaluated))
 
-				if __debug__:
-					logging.debug(deck)
-					logging.debug("New score: {}".format(new_score))
+		logging.info("Constructing deck list...")
 
-				deck_options.append(deck)
+		cards_list = list(cards_set)
+		deck_options = list(map(lambda cards: Deck(self, list(cards)), cards_list))
 
+		logging.info("Sorting decks...")
 		deck_options.sort(key=lambda d: d.get_damage(), reverse=True)
 
 		if true_scores:
-			for deck in deck_options[:10]:
+			logging.info("Minimizing deltas..")
+
+			for deck in progressbar.progressbar(deck_options[:5]):
 				deck.minimize_delta()
 
-		print("============================ Damage Rankings ========================================================")
+		for deck in deck_options[:5]:
+			deck.get_damage()
+			deck.get_score()
+
+		print("============================ Damage Rankings =========================================================")
 		print("RNK\tDMG\tSCORE\tRESOURCES                    \tDESCRIPTION")
 		print("======================================================================================================")
-		for deck in deck_options[:10]:
+		for deck in deck_options[:5]:
 			print("#{}\t{:.1f}\t{:.3f}\t{}\t{}".format(deck_options.index(deck)+1, deck.get_damage(), deck.get_score(), deck.resources, deck))
 
 		self.deck = deck_options[0]
@@ -709,8 +735,10 @@ class AppState:
 			drew = []
 
 			# draw 3 cards
-			for i in range(1):
-				card = Card.random(minE=4, minR=4)
+			for i in range(3):
+				#card = Card.random(minE=4, minR=4)
+				card = Card.random(minE=2)
+
 				drew.append(card)
 				self.deck.add_card(card)
 
