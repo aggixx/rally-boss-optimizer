@@ -5,6 +5,7 @@ import math
 import copy
 import inspect
 import random
+import json
 from statistics import mean
 from enum import Enum
 from functools import lru_cache
@@ -261,6 +262,14 @@ class ComplexDeck():
 	def get_resources(self):
 		return self.resources
 
+	def dump_score_data(self):
+		data = {}
+
+		for pair in self.pairs:
+			data[repr(pair.selection)] = repr(pair.resources)
+
+		self.app.score_data[str(self.deck)] = data
+
 class Deck:
 	def __init__(self, app, cards):
 		self.cards = cards
@@ -359,6 +368,8 @@ class Deck:
 		self.resources = cd.get_resources()
 		self.score = min(self.resources.wood, self.resources.stone) * 2
 
+		if self.app.dump_score_data:
+			cd.dump_score_data()
 class Card:
 	def __init__(self, elements, resource, resource_amount):
 		self.elements = tuple(sorted(elements))
@@ -432,6 +443,7 @@ class AppState:
 
 		self.dump_score_data = False
 		self.use_random_deck = False
+		self.score_data = {}
 
 	def get_bosses(self):
 		if not hasattr(self, 'bosses'):
@@ -558,16 +570,16 @@ class AppState:
 		for deck in true_decks[:10]:
 			print("#{}\t#{}\t{:.3f}\t{}\t{}".format(true_decks.index(deck)+1, deck_options.index(deck)+1, deck.get_score(), deck.resources, deck))
 
-		if app.dump_score_data:
-			tsv = ""
+		if self.dump_score_data:
+			with open('scores.json', 'w') as f:
+				json.dump(self.score_data, f, indent=4, sort_keys=True)
+
+			logging.info("Dumped score data to scores.json.")
 
 			for deck in true_decks:
 				tsv += "{}\t{}\t{}\n".format(deck.base_score, deck.base_delta, deck.get_score())
 
-			with open('scores.tsv', 'w') as f:
-				f.write(tsv)
 
-			logging.info("Dumped score data to scores.tsv.")
 
 
 app = AppState()
