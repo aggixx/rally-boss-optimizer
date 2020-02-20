@@ -192,7 +192,6 @@ class Hand:
 
 		return flip_cost
 
-	@profile_cumulative
 	def get_damage(self):
 		key = repr(self)
 
@@ -620,7 +619,37 @@ class AppState:
 
 		self.deck = Deck(self, cards)
 
-	def optimize_deck(self):
+	def maximize_damage(self, true_scores=True):
+		deck_options = []
+
+		for deck_size in range(len(self.deck), 9, -1):
+			#logging.info("Deck size: {}".format(deck_size))
+
+			for cards in itertools.combinations(self.deck.cards, deck_size):
+				deck = Deck(self, list(cards))
+				new_score = deck.get_score()
+
+				if __debug__:
+					logging.debug(deck)
+					logging.debug("New score: {}".format(new_score))
+
+				deck_options.append(deck)
+
+		deck_options.sort(key=lambda d: d.get_damage(), reverse=True)
+
+		if true_scores:
+			for deck in deck_options[:10]:
+				deck.minimize_delta()
+
+		print("============================ Damage Rankings ========================================================")
+		print("RNK\tDMG\tSCORE\tRESOURCES                    \tDESCRIPTION")
+		print("======================================================================================================")
+		for deck in deck_options[:10]:
+			print("#{}\t{:.1f}\t{:.3f}\t{}\t{}".format(deck_options.index(deck)+1, deck.get_damage(), deck.get_score(), deck.resources, deck))
+
+		self.deck = deck_options[0]
+
+	def maximize_resources(self):
 		deck_options = []
 
 		for deck_size in range(len(self.deck), 9, -1):
@@ -637,26 +666,6 @@ class AppState:
 				deck_options.append(deck)
 
 		deck_options.sort(key=lambda d: d.get_score(), reverse=True)
-
-		'''
-		print("============================ Heuristic Scores ========================================================")
-		print("RNK\tSCORE\tRESOURCES                    \tDESCRIPTION")
-		print("======================================================================================================")
-
-		for deck_option in deck_options[:10]:
-			print("#{}\t{:.3f}\t{}\t{}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
-
-		logging.info("Minimizing deltas...")
-		'''
-
-		with ChunkProfiler('damage-rankings'):
-			sorted_by_dmg = sorted(deck_options, key=lambda d: d.get_damage(), reverse=True)
-
-			print("============================ Heuristic Scores ========================================================")
-			print("RNK\tDMG\tSCORE\tRESOURCES                    \tDESCRIPTION")
-			print("======================================================================================================")
-			for deck in sorted_by_dmg[:10]:
-				print("#{}\t{:.1f}\t{:.3f}\t{}\t{}".format(sorted_by_dmg.index(deck)+1, deck.get_damage(), deck.get_score(), deck.resources, deck))
 
 		highest_score = 0
 		true_decks = []
@@ -691,7 +700,6 @@ class AppState:
 		self.deck = true_decks[0]
 
 	def run(self):
-		'''
 		for draws in range(999999):
 			logging.info("Round {}".format(draws+1))
 			drew = []
@@ -704,12 +712,11 @@ class AppState:
 
 			logging.info("Drew cards: {}".format(drew))
 
-			self.optimize_deck()
+			self.maximize_damage(true_scores=False)
 
 			logging.info("Current deck: {}".format(self.deck.cards))
-		'''
 
-		self.optimize_deck()
+		#self.maximize_damage()
 
 
 
