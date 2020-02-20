@@ -143,6 +143,8 @@ class ResourceContainer:
 			return None
 
 class Hand:
+	damage_cache = {}
+
 	def __init__(self, deck, cards):
 		self.cards = cards
 		self.deck = deck
@@ -189,6 +191,20 @@ class Hand:
 			logging.debug("{} vs {} flip cost: {}".format(self, boss, flip_cost))
 
 		return flip_cost
+
+	@profile_cumulative
+	def get_damage(self):
+		key = repr(self)
+
+		if key not in self.damage_cache:
+			damage = 0
+
+			for boss in self.app.bosses:
+				damage += max(map(lambda c: boss.calculate_damage(c), self.cards)) * boss.get_spawn_chance()
+
+			self.damage_cache[key] = damage
+
+		return self.damage_cache[key]
 
 class BossHandPair():
 	def __init__(self, cd, boss, hand):
@@ -324,6 +340,17 @@ class Deck:
 
 		return self.score
 
+	def get_damage(self):
+		if not hasattr(self, 'damage'):
+			self.damage = 0
+
+			for hand in self.get_hands():
+				self.damage += hand.get_damage() * hand.draw_chance
+
+			self.damage *= self.collection_bonus
+
+		return self.damage
+
 	def minimize_delta(self):
 		if __debug__:
 			logging.debug("Minimizing delta on {}...".format(self))
@@ -372,7 +399,7 @@ class Deck:
 			cd.dump_score_data()
 
 	@cached_property
-	def get_collection_bonus(self):
+	def collection_bonus(self):
 		return 1.00 + 0.01 * sum(list(map(lambda c: len(c.elements), self.cards)))
 
 	def add_card(self, card):
@@ -382,6 +409,8 @@ class Deck:
 			del self.hands
 		if hasattr(self, 'score'):
 			del self.score
+		if hasattr(self, 'damage'):
+			del self.damage
 
 class Card:
 	def __init__(self, elements, resource, resource_amount):
@@ -409,15 +438,19 @@ class Card:
 
 		return cls(elements, resource, resource_amount)
 
-	@lru_cache(maxsize=128)
-	def get_level_multiplier(lvl):
-		# an estimate, at best
-		#return 1.00 + (lvl - 1) * 0.01
-		m = 0.986 + 0.0346 * lvl - 0.000667 * lvl ** 2 + 0.00000722 * lvl ** 3 - 0.0000000297 * lvl ** 4
+	@cached_property
+	def level_multipliers(self):
+		m = []
 
-		logging.info(lvl, m)
+		for lvl in range(0, 100):
+			val = 0.984 + 0.0343 * lvl - 0.00064 * lvl ** 2 + 0.00000668 * lvl ** 3 - 0.0000000267 * lvl ** 4
+			m.append(val)
 
-		return
+		return m
+
+	#@lru_cache(maxsize=128)
+	def get_level_multiplier(self):
+		return self.level_multipliers[self.level]
 
 class Boss:
 	base_damage = [0, 30, 40, 55, 75]
@@ -466,13 +499,10 @@ class Boss:
 		else:
 			return 1.00
 
-	@profile_cumulative
-	def calculate_damage(self, card, deck):
+	def calculate_damage(self, card):
 		damage = self.__calculate_damage__(card.elements, self.elements)
 
-		#damage *= deck.get_collection_bonus()
-
-		#damage *= card.get_level_multiplier()
+		damage *= card.get_level_multiplier()
 
 		return damage
 
@@ -618,6 +648,15 @@ class AppState:
 
 		logging.info("Minimizing deltas...")
 		'''
+
+		with ChunkProfiler('damage-rankings'):
+			sorted_by_dmg = sorted(deck_options, key=lambda d: d.get_damage(), reverse=True)
+
+			print("============================ Heuristic Scores ========================================================")
+			print("RNK\tDMG\tSCORE\tRESOURCES                    \tDESCRIPTION")
+			print("======================================================================================================")
+			for deck in sorted_by_dmg[:10]:
+				print("#{}\t{:.1f}\t{:.3f}\t{}\t{}".format(sorted_by_dmg.index(deck)+1, deck.get_damage(), deck.get_score(), deck.resources, deck))
 
 		highest_score = 0
 		true_decks = []
