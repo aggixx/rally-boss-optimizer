@@ -404,7 +404,7 @@ class Card:
 class Boss:
 	def __init__(self, app, elements):
 		self.app = app
-		self.elements = elements
+		self.elements = tuple(sorted(elements))
 		self.elements_set = set(elements)
 
 		n = 4
@@ -532,7 +532,7 @@ class AppState:
 			#logging.info("Deck size: {}".format(deck_size))
 
 			for cards in itertools.combinations(self.deck.cards, deck_size):
-				deck = Deck(self, cards)
+				deck = Deck(self, list(cards))
 				new_score = deck.get_score()
 
 				if __debug__:
