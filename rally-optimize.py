@@ -529,7 +529,7 @@ class AppState:
 		deck_options = []
 
 		for deck_size in range(len(self.deck), 9, -1):
-			logging.info("Deck size: {}".format(deck_size))
+			#logging.info("Deck size: {}".format(deck_size))
 
 			for cards in itertools.combinations(self.deck.cards, deck_size):
 				deck = Deck(self, cards)
@@ -543,6 +543,7 @@ class AppState:
 
 		deck_options.sort(key=lambda d: d.get_score(), reverse=True)
 
+		'''
 		print("============================ Heuristic Scores ========================================================")
 		print("RNK\tSCORE\tRESOURCES                    \tDESCRIPTION")
 		print("======================================================================================================")
@@ -551,6 +552,7 @@ class AppState:
 			print("#{}\t{:.3f}\t{}\t{}".format(deck_options.index(deck_option)+1, deck_option.get_score(), deck_option.resources, deck_option))
 
 		logging.info("Minimizing deltas...")
+		'''
 
 		highest_score = 0
 		true_decks = []
