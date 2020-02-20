@@ -423,15 +423,15 @@ class Boss:
 		return self.spawn_weight / self.spawn_total / 4
 
 	def calculate_resources(self, card):
-		return self.__calculate_resources__(card.elements, card.resource_amount, card.resource)
+		return self.__calculate_resources__(tuple(self.elements_set), card.elements, card.resource_amount, card.resource)
 
 	@lru_cache(maxsize=16384)
-	def __calculate_resources__(self, card_elements, card_resource_amount, card_resource):
-		matches = len(list(filter(lambda e: e in self.elements_set, card_elements)))
+	def __calculate_resources__(self, boss_elements, card_elements, card_resource_amount, card_resource):
+		matches = len(list(filter(lambda e: e in boss_elements, card_elements)))
 		total_amount = matches * card_resource_amount
 
 		if __debug__:
-			logging.debug("{} vs {} resource amount: {} {}".format(card_elements, self, total_amount, card_resource))
+			logging.debug("{} vs {} resource amount: {} {}".format(card_elements, boss_elements, total_amount, card_resource))
 
 		return ResourceContainer.create(total_amount, card_resource)
 
