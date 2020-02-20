@@ -382,11 +382,13 @@ class Deck:
 			del self.hands
 		if hasattr(self, 'score'):
 			del self.score
+
 class Card:
 	def __init__(self, elements, resource, resource_amount):
 		self.elements = tuple(sorted(elements))
 		self.resource_amount = resource_amount
 		self.resource = resource
+		self.level = 1
 
 	def __str__(self):
 		return "Card-{}-{}{}".format("".join(map(lambda e: e.short(), self.elements)), self.resource.short(), self.resource_amount)
@@ -407,7 +409,19 @@ class Card:
 
 		return cls(elements, resource, resource_amount)
 
+	@lru_cache(maxsize=128)
+	def get_level_multiplier(lvl):
+		# an estimate, at best
+		#return 1.00 + (lvl - 1) * 0.01
+		m = 0.986 + 0.0346 * lvl - 0.000667 * lvl ** 2 + 0.00000722 * lvl ** 3 - 0.0000000297 * lvl ** 4
+
+		logging.info(lvl, m)
+
+		return
+
 class Boss:
+	base_damage = [0, 30, 40, 55, 75]
+
 	def __init__(self, app, elements):
 		self.app = app
 		self.elements = tuple(sorted(elements))
@@ -424,8 +438,53 @@ class Boss:
 	def __repr__(self):
 		return "<Boss-{}>".format("".join(map(lambda e: e.short(), self.elements)))
 
-	def calculateDamage(self, card):
-		pass
+	@lru_cache(maxsize=None)
+	def get_hit_multiplier(self, card_elements, boss_elements):
+		# Perfect Hit: earned when a card is played with the exact matching quantity of and type of Elements to the Boss
+		# Perfect =  x5
+		if card_elements == boss_elements:
+			return 5.00
+		elif len(list(filter(lambda e: e not in card_elements, set(boss_elements)))) == 0:
+			# Critical Hit: earned when all of the Boss Elements are matched but the card played has additional unmatched Elements
+			# Critical =  x2.5
+			if len(list(filter(lambda e: e not in boss_elements, set(card_elements)))) > 0:
+				return 2.50
+			# Special Hit: earned when a card is played that matches all of the Elements of the Boss but is not a perfect hit
+			# Special =  x3.5
+			else:
+				return 3.50
+		# Clean Hit: earned when all of the card Elements match to the Boss but the Boss has additional Elements unmatched
+		# Clean =  x1.75
+		elif len(list(filter(lambda e: e not in boss_elements, set(card_elements)))) == 0:
+			return 1.75
+		# Match Hit: earned when any number of card Elements match Boss Elements
+		# Match =  x1.25
+		elif len(list(filter(lambda e: e in boss_elements, set(card_elements)))) > 0:
+			return 1.25
+		# Base Hit: earned when there are no matching Elements
+		# Base =  x1
+		else:
+			return 1.00
+
+	@profile_cumulative
+	def calculate_damage(self, card, deck):
+		damage = self.__calculate_damage__(card.elements, self.elements)
+
+		#damage *= deck.get_collection_bonus()
+
+		#damage *= card.get_level_multiplier()
+
+		return damage
+
+	@lru_cache(maxsize=4096)
+	def __calculate_damage__(self, card_elements, boss_elements):
+		damage = self.base_damage[len(card_elements)]
+
+		damage *= self.get_hit_multiplier(card_elements, boss_elements)
+
+		# rarity ??????
+
+		return damage
 
 	def get_spawn_chance(self):
 		return self.spawn_weight / self.spawn_total / 4
