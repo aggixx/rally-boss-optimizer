@@ -525,7 +525,7 @@ class AppState:
 
 		self.deck = Deck(self, cards)
 
-	def run(self):
+	def optimize_deck(self):
 		deck_options = []
 
 		for deck_size in range(len(self.deck), 9, -1):
@@ -582,8 +582,35 @@ class AppState:
 
 			logging.info("Dumped score data to scores.json.")
 
-			for deck in true_decks:
-				tsv += "{}\t{}\t{}\n".format(deck.base_score, deck.base_delta, deck.get_score())
+		'''
+		for deck in true_decks:
+			for card in deck.cards:
+				for boss in app.bosses:
+					boss.calculate_damage(card, deck)
+		'''
+
+		self.deck = true_decks[0]
+
+	def run(self):
+		'''
+		for draws in range(999999):
+			logging.info("Round {}".format(draws+1))
+			drew = []
+
+			# draw 3 cards
+			for i in range(1):
+				card = Card.random(minE=4)
+				drew.append(card)
+				self.deck.add_card(card)
+
+			logging.info("Drew cards: {}".format(drew))
+
+			self.optimize_deck()
+
+			logging.info("Current deck: {}".format(self.deck.cards))
+		'''
+
+		self.optimize_deck()
 
 
 
