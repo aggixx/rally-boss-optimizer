@@ -346,7 +346,7 @@ class Deck:
 			for hand in self.get_hands():
 				self.damage += hand.get_damage() * hand.draw_chance
 
-			self.damage *= self.collection_bonus
+			self.damage *= self.get_collection_bonus()
 
 		return self.damage
 
@@ -397,9 +397,11 @@ class Deck:
 		if self.app.dump_score_data:
 			cd.dump_score_data()
 
-	@cached_property
-	def collection_bonus(self):
-		return 1.00 + 0.01 * sum(list(map(lambda c: len(c.elements), self.cards)))
+	def get_collection_bonus(self):
+		if not hasattr(self, 'collection_bonus'):
+			self.collection_bonus = 1.00 + 0.01 * sum(list(map(lambda c: len(c.elements), self.cards)))
+
+		return self.collection_bonus
 
 	def add_card(self, card):
 		self.cards.append(card)
@@ -410,6 +412,8 @@ class Deck:
 			del self.score
 		if hasattr(self, 'damage'):
 			del self.damage
+		if hasattr(self, 'collection_bonus'):
+			del self.collection_bonus
 
 class Card:
 	def __init__(self, elements, resource, resource_amount):
