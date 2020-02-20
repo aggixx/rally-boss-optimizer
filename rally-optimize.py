@@ -374,6 +374,14 @@ class Deck:
 	@cached_property
 	def get_collection_bonus(self):
 		return 1.00 + 0.01 * sum(list(map(lambda c: len(c.elements), self.cards)))
+
+	def add_card(self, card):
+		self.cards.append(card)
+
+		if hasattr(self, 'hands'):
+			del self.hands
+		if hasattr(self, 'score'):
+			del self.score
 class Card:
 	def __init__(self, elements, resource, resource_amount):
 		self.elements = tuple(sorted(elements))
